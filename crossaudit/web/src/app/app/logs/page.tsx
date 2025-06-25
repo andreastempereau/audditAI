@@ -10,6 +10,10 @@ export default function Logs() {
 
   return (
     <div>
+<<<<<<< codex/enhance-and-complete-web-app
+=======
+<<<<<<< vlw2xb-codex/enhance-and-complete-web-app
+>>>>>>> main
       <h2 className="text-xl mb-4 font-semibold">Audit Log</h2>
       <ul className="space-y-1">
         {logs.map((l, i) => (
@@ -18,6 +22,15 @@ export default function Logs() {
           </li>
         ))}
       </ul>
+<<<<<<< codex/enhance-and-complete-web-app
+=======
+=======
+      <h2 className="text-xl mb-2">Audit Log</h2>
+      <pre className="whitespace-pre-wrap">
+        {JSON.stringify(logs, null, 2)}
+      </pre>
+>>>>>>> main
+>>>>>>> main
     </div>
   );
 }
