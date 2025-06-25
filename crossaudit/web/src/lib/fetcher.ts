@@ -1,1 +1,5 @@
-export async function fetcher(url: string) { const res = await fetch(url); return res.json(); }
+export async function fetcher(url: string) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('request failed');
+  return res.json();
+}
