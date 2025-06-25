@@ -1,3 +1,7 @@
+pub mod chunks;
+pub mod embed;
+pub mod pdf;
+
 use anyhow::Result;
 use reqwest::Client;
 use tokio::fs;
