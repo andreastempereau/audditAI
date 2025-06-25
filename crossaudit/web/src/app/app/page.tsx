@@ -16,9 +16,13 @@ export default function Chat() {
 
   return (
     <div>
-      <textarea value={prompt} onChange={e => setPrompt(e.target.value)} />
-      <button onClick={send}>Send</button>
-      <pre>{resp}</pre>
+      <textarea
+        className="w-full border p-2"
+        value={prompt}
+        onChange={e => setPrompt(e.target.value)}
+      />
+      <button className="mt-2" onClick={send}>Send</button>
+      <pre className="mt-4 whitespace-pre-wrap">{resp}</pre>
     </div>
   );
 }
