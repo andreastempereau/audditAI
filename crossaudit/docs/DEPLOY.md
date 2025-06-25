@@ -29,3 +29,15 @@ docker run \
 
 The other services in this repository follow a similar pattern and each has a
 Dockerfile under `docker/`.
+
+## Running with Docker Compose
+
+A sample `docker-compose.yml` is provided at the repository root. It starts
+Postgres, the gateway and the web frontend in one command:
+
+```bash
+docker compose up -d
+```
+
+Copy `.env.example` to `.env` and adjust the values before starting the stack.
+The web interface will be available on port 3000 and the gateway on port 8000.

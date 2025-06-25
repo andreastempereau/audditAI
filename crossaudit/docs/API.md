@@ -28,3 +28,12 @@ The response is an array of strings.
 
 Upload a document. The request body is the raw file bytes and a successful
 upload returns HTTP `201 Created`.
+
+### Error Responses
+
+Any unhandled error will result in a `500` status with a plain text message.
+Requests violating policy rules return `403` and an error object:
+
+```json
+{ "error": "blocked" }
+```
