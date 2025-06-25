@@ -1,0 +1,9 @@
+FROM rust:1.79 AS build
+WORKDIR /code
+COPY . .
+RUN cargo build --release --workspace --bin crossaudit-vault
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y ca-certificates libpq5 && rm -rf /var/lib/apt/lists/*
+COPY --from=build /code/target/release/crossaudit-vault /app/vault
+ENTRYPOINT ["/app/vault"]

@@ -1,0 +1,11 @@
+global: { t1: 0.15, t2: 0.35 }
+rules:
+  - id: policy.vulgar
+    type: regex
+    pattern: '(?i)\\b(fuck|shit|damn)\\b'
+    action: block
+  - id: pii.ssn
+    type: regex
+    pattern: '\\b\\d{3}-\\d{2}-\\d{4}\\b'
+    action: rewrite
+    replacement: '***-**-****'
