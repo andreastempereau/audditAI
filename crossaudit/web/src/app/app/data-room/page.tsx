@@ -19,6 +19,10 @@ export default function DataRoom() {
 
   return (
     <div>
+<<<<<<< codex/enhance-and-complete-web-app
+      <h2 className="text-xl mb-4 font-semibold">Documents</h2>
+      <ul className="space-y-1 mb-4">
+=======
 <<<<<<< vlw2xb-codex/enhance-and-complete-web-app
       <h2 className="text-xl mb-4 font-semibold">Documents</h2>
       <ul className="space-y-1 mb-4">
@@ -36,12 +40,23 @@ export default function DataRoom() {
 =======
       <h2 className="text-xl mb-2">Documents</h2>
       <ul className="list-disc ml-6 mb-4">
+>>>>>>> main
         {docs.map(d => (
-          <li key={d}>{d}</li>
+          <li key={d} className="border rounded p-2 bg-white flex justify-between">
+            <span>{d}</span>
+            <a href={`/api/docs/${d}`} className="text-blue-600 hover:underline">View</a>
+          </li>
         ))}
       </ul>
+<<<<<<< codex/enhance-and-complete-web-app
+      <div className="space-x-2">
+        <input type="file" onChange={e => setFile(e.target.files?.[0] || null)} />
+        <button className="bg-blue-600 text-white px-3 py-1 rounded" onClick={upload}>Upload</button>
+      </div>
+=======
       <input type="file" onChange={e => setFile(e.target.files?.[0] || null)} />
       <button className="ml-2" onClick={upload}>Upload</button>
+>>>>>>> main
 >>>>>>> main
     </div>
   );

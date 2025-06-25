@@ -29,7 +29,7 @@ export default function Policy() {
         className="w-full border p-2 h-40"
       <h2 className="text-xl mb-2">Policy</h2>
       <textarea
-        className="w-full border p-2"
+        className="w-full border p-2 h-40"
         value={policy}
         onChange={e => setPolicy(e.target.value)}
       />
