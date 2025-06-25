@@ -16,6 +16,29 @@ services:
       - "8000:8000"
     depends_on:
       - db
+  vault:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.vault
+    env_file: .env
+    ports:
+      - "9101:9101"
+    depends_on:
+      - db
+  billing:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.billing
+    env_file: .env
+    depends_on:
+      - db
+  ledger-seal:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ledger-seal
+    env_file: .env
+    depends_on:
+      - db
   web:
     build:
       context: .
