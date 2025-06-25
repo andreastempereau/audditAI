@@ -1,0 +1,14 @@
+gateway:
+  image:
+    repository: ghcr.io/example/crossaudit-gateway
+    tag: "1.0.0"
+ingestor:
+  image: ghcr.io/example/crossaudit-ingestor:1.0.0
+web:
+  image: ghcr.io/example/crossaudit-web:1.0.0
+postgres:
+  storage: 50Gi
+grafana:
+  adminPassword: change-me
+kyverno:
+  verifyCosign: true
