@@ -2,14 +2,7 @@
 import Toast from '../components/Toast';
 import { useState } from 'react';
 import { useAlerts } from '../lib/useAlerts';
-<<<<<<< codex/enhance-and-complete-web-app
 import '../globals.css';
-=======
-<<<<<<< vlw2xb-codex/enhance-and-complete-web-app
-import '../globals.css';
-=======
->>>>>>> main
->>>>>>> main
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [msg, setMsg] = useState('');

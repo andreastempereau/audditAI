@@ -25,10 +25,6 @@ export default function Chat() {
           </div>
         ))}
       </div>
-<<<<<<< codex/enhance-and-complete-web-app
-=======
-    <div>
->>>>>>> main
       <textarea
         className="w-full border p-2"
         value={prompt}
@@ -37,11 +33,6 @@ export default function Chat() {
       <button className="self-end bg-blue-600 text-white px-4 py-1 rounded" onClick={send}>
         Send
       </button>
-<<<<<<< codex/enhance-and-complete-web-app
-=======
-      <button className="mt-2" onClick={send}>Send</button>
-      <pre className="mt-4 whitespace-pre-wrap">{resp}</pre>
->>>>>>> main
     </div>
   );
 }
