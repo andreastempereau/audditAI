@@ -30,6 +30,7 @@ pub fn build_router(state: AppState) -> axum::Router {
     axum::Router::new()
         .route("/chat", post(crate::routes::chat))
         .route("/docs", get(crate::routes::list_docs))
+        .route("/docs/:id", get(crate::routes::get_doc))
         .route("/upload", post(crate::routes::upload_doc))
         .with_state(state)
 }

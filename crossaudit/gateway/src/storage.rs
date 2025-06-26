@@ -34,4 +34,9 @@ impl Storage {
         }
         Ok(out)
     }
+
+    pub async fn load(&self, id: &str) -> Result<Vec<u8>> {
+        let file = self.root.join(id);
+        Ok(fs::read(&file).await?)
+    }
 }
