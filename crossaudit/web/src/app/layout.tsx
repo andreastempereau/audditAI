@@ -9,7 +9,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   useAlerts(setMsg);
   return (
     <html lang="en">
-      <body className="bg-gray-50 text-gray-900">
+      <head>
+        <title>CrossAudit</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
+      <body className="bg-gray-50 text-gray-900 min-h-screen flex flex-col">
         {children}
         <Toast message={msg} />
       </body>

@@ -63,15 +63,19 @@ pub async fn list_docs(state: &AppState) -> Result<Vec<String>> {
     state.storage.list().await
 }
 
-pub async fn search(state: &AppState, query: &str, limit: i64) -> Result<Vec<Uuid>> {
+pub async fn search(state: &AppState, query: &str, limit: i64) -> Result<Vec<(Uuid, String)>> {
     let embedding = embed::embed_chunks(&[query.to_string()])?.remove(0);
     let vec: Vector = embedding.into();
     let client = state.pool.get().await?;
     let rows = client
         .query(
-            "SELECT doc_id FROM chunks ORDER BY embedding <-> $1 LIMIT $2",
+            "SELECT id, plaintext FROM chunks ORDER BY embedding <-> $1 LIMIT $2",
             &[&vec, &limit],
         )
         .await?;
-    Ok(rows.iter().map(|r| r.get(0)).collect())
+    Ok(rows.iter().map(|r| (r.get(0), r.get(1))).collect())
+}
+
+pub async fn get_doc(state: &AppState, id: &str) -> Result<Vec<u8>> {
+    state.storage.load(id).await
 }
