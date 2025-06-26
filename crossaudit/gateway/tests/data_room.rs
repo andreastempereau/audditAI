@@ -17,5 +17,5 @@ async fn upload_and_search() {
     save_doc(&state, Bytes::from_static(bytes)).await.unwrap();
 
     let res = search(&state, "Hello", 5).await.unwrap();
-    assert!(!res.is_empty());
+    assert!(res.iter().any(|(_, t)| t.contains("Hello")));
 }

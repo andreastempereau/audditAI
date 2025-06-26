@@ -32,11 +32,11 @@ struct OpenAiResponse {
     choices: Vec<Choice>,
 }
 
-pub async fn chat(state: &AppState, prompt: &str, fragments: &[Uuid]) -> Result<String> {
+pub async fn chat(state: &AppState, prompt: &str, fragments: &[String]) -> Result<String> {
     let ctx = if fragments.is_empty() {
         String::new()
     } else {
-        format!("Context docs: {:?}\n", fragments)
+        format!("Context docs:\n{}\n", fragments.join("\n"))
     };
     let full_prompt = format!("{}{}", ctx, prompt);
     if !state.settings.openai_api_key.is_empty() {
