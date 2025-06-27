@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import Spinner from '../../../components/Spinner';
+import Spinner from '@/components/Spinner';
 
 export default function Members() {
   const [members, setMembers] = useState<any[]>([]);

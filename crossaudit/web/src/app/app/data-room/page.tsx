@@ -1,60 +1,104 @@
 "use client";
-import { useEffect, useState } from 'react';
-import Spinner from '../../components/Spinner';
+import { useState, useEffect } from 'react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
+import { Files, Search, History, Settings as SettingsIcon } from 'lucide-react';
+import { FilesTab } from '@/components/dataroom/FilesTab';
+import { FragmentsTab } from '@/components/dataroom/FragmentsTab';
+import { VersionsTab } from '@/components/dataroom/VersionsTab';
+import { SettingsTab } from '@/components/dataroom/SettingsTab';
+import { IndexHealthCard } from '@/components/dataroom/IndexHealthCard';
+import { useIndexHealth } from '@/lib/hooks/useDataRoom';
 
 export default function DataRoom() {
-  const [docs, setDocs] = useState<string[]>([]);
-  const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('files');
+  const [searchQuery, setSearchQuery] = useState('');
+  const { health } = useIndexHealth();
 
-  async function load() {
-    const d = await fetch('/api/docs').then(r => r.json());
-    setDocs(d);
-  }
-
+  // Keyboard shortcuts
   useEffect(() => {
-    load();
+    const handleKeydown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (e.key === '/' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setActiveTab('fragments');
+        // Focus search bar after tab switch
+        setTimeout(() => {
+          const searchInput = document.querySelector('[data-search-input]') as HTMLInputElement;
+          searchInput?.focus();
+        }, 100);
+      }
+
+      if (e.key === 'u' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setActiveTab('files');
+        // Trigger upload zone
+        setTimeout(() => {
+          const uploadZone = document.querySelector('[data-upload-zone]') as HTMLElement;
+          uploadZone?.click();
+        }, 100);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeydown);
+    return () => document.removeEventListener('keydown', handleKeydown);
   }, []);
 
-  async function upload() {
-    if (!file) return;
-    setLoading(true);
-    const buf = await file.arrayBuffer();
-    await fetch('/api/upload', { method: 'POST', body: buf });
-    setFile(null);
-    await load();
-    setLoading(false);
-  }
-
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Documents</h2>
-      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-        {docs.map(d => (
-          <div key={d} className="p-3 bg-white rounded shadow flex justify-between items-center animate-fadeIn">
-            <span className="truncate mr-2" title={d}>{d}</span>
-            <a
-              href={`/api/docs/${d}`}
-              className="text-blue-600 hover:underline whitespace-nowrap"
-            >
-              View
-            </a>
-          </div>
-        ))}
+    <div className="h-full flex flex-col">
+      {/* Header with Index Health */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-display-xl text-muted-900 dark:text-white">Data Room</h1>
+          <p className="text-sm text-muted-600 dark:text-muted-400 mt-1">
+            Manage files, search fragments, and track versions
+          </p>
+        </div>
+        <IndexHealthCard health={health} />
       </div>
-      <div className="flex items-center space-x-2">
-        <input
-          type="file"
-          className="border rounded p-1 flex-1"
-          onChange={e => setFile(e.target.files?.[0] || null)}
-        />
-        <button
-          className="bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50"
-          onClick={upload}
-          disabled={loading || !file}
-        >
-          {loading ? <Spinner /> : 'Upload'}
-        </button>
+
+      {/* Main Content */}
+      <div className="flex-1 min-h-0">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsTrigger value="files" className="flex items-center gap-2">
+              <Files className="w-4 h-4" />
+              Files
+            </TabsTrigger>
+            <TabsTrigger value="fragments" className="flex items-center gap-2">
+              <Search className="w-4 h-4" />
+              Fragments
+            </TabsTrigger>
+            <TabsTrigger value="versions" className="flex items-center gap-2">
+              <History className="w-4 h-4" />
+              Versions
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <SettingsIcon className="w-4 h-4" />
+              Settings
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="flex-1 min-h-0">
+            <TabsContent value="files" className="h-full mt-0">
+              <FilesTab />
+            </TabsContent>
+
+            <TabsContent value="fragments" className="h-full mt-0">
+              <FragmentsTab searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+            </TabsContent>
+
+            <TabsContent value="versions" className="h-full mt-0">
+              <VersionsTab />
+            </TabsContent>
+
+            <TabsContent value="settings" className="h-full mt-0">
+              <SettingsTab />
+            </TabsContent>
+          </div>
+        </Tabs>
       </div>
     </div>
   );

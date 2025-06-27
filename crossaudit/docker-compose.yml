@@ -3,7 +3,7 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_PASSWORD: secret
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
       POSTGRES_DB: crossaudit
     volumes:
       - db-data:/var/lib/postgresql/data

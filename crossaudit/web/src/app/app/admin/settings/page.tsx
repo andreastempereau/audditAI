@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import Spinner from '../../../components/Spinner';
+import Spinner from '@/components/Spinner';
 
 export default function Settings() {
   const [url, setUrl] = useState('');
@@ -39,7 +39,7 @@ export default function Settings() {
   );
 }
 
-export function ApiKeys() {
+function ApiKeys() {
   const [keys, setKeys] = useState<any[]>([]);
   const [provider, setProvider] = useState('');
   const [apiKey, setApiKey] = useState('');

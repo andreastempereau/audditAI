@@ -7,7 +7,11 @@ export const config = {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const buf = await req.arrayBuffer();
-  await fetch('http://localhost:8000/upload', { method: 'POST', body: buf });
-  res.status(201).end();
+  const chunks: Buffer[] = [];
+  req.on('data', (chunk) => chunks.push(chunk));
+  req.on('end', async () => {
+    const buf = Buffer.concat(chunks);
+    await fetch('http://localhost:8000/upload', { method: 'POST', body: buf });
+    res.status(201).end();
+  });
 }

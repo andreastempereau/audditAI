@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import Spinner from '../../../components/Spinner';
+import Spinner from '@/components/Spinner';
 
 export default function LogDetail() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id as string;
   const [log, setLog] = useState<any | null>(null);
 
   useEffect(() => {
