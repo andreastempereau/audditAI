@@ -99,7 +99,7 @@ export class PolicyEngine {
             reasoning = `Blocked due to: ${rule.description}`;
             confidence = 0.95;
             break; // BLOCK is final
-          } else if (rule.action === 'REWRITE' && finalAction !== 'BLOCK') {
+          } else if (rule.action === 'REWRITE' && (finalAction === 'PASS' || finalAction === 'REWRITE' || finalAction === 'FLAG')) {
             finalAction = 'REWRITE';
             rewrite = await this.generateRewrite(rule, evaluation, context);
             reasoning = `Rewritten due to: ${rule.description}`;

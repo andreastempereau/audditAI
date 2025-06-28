@@ -3,7 +3,7 @@ import { Slot } from '@radix-ui/react-slot';
 import { cn } from '@/lib/utils';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'destructive';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
   size?: 'sm' | 'md' | 'lg';
   asChild?: boolean;
 }
@@ -22,6 +22,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           {
             'bg-primary text-white hover:bg-primary/90 active:bg-primary/80 focus-visible:ring-primary': variant === 'primary',
             'bg-muted-100 text-muted-900 hover:bg-muted-200 active:bg-muted-300 focus-visible:ring-muted-500': variant === 'secondary',
+            'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100 focus-visible:ring-gray-500': variant === 'outline',
             'text-muted-700 hover:bg-muted-100 active:bg-muted-200 focus-visible:ring-muted-500': variant === 'ghost',
             'bg-error-500 text-white hover:bg-error-600 active:bg-error-700 focus-visible:ring-error-500': variant === 'destructive',
           },

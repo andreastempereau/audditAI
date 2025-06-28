@@ -1,4 +1,5 @@
 import { ContextDocument } from '../gateway/types';
+import { getEmbeddingService, CachedEmbeddingService } from '@/lib/embeddings';
 
 interface SearchOptions {
   limit?: number;
@@ -33,8 +34,11 @@ interface EmbeddingVector {
 export class ContextRetriever {
   private embeddings: Map<string, EmbeddingVector[]> = new Map(); // clientId -> embeddings
   private embeddingDimension = 1536; // OpenAI embedding dimension
+  private embeddingService: CachedEmbeddingService;
   
   constructor() {
+    // Initialize embedding service with caching
+    this.embeddingService = new CachedEmbeddingService(getEmbeddingService());
     // Initialize with some sample data for testing
     this.initializeSampleData();
   }
@@ -150,9 +154,14 @@ export class ContextRetriever {
   }
 
   private async getEmbedding(text: string): Promise<number[]> {
-    // In production, this would call OpenAI Embeddings API
-    // For now, return a simple hash-based pseudo-embedding
-    return this.generatePseudoEmbedding(text);
+    try {
+      // Use real OpenAI embeddings
+      return await this.embeddingService.generateEmbedding(text);
+    } catch (error) {
+      console.error('Failed to generate embedding, falling back to pseudo-embedding:', error);
+      // Fallback to pseudo-embedding if API fails
+      return this.generatePseudoEmbedding(text);
+    }
   }
 
   private generatePseudoEmbedding(text: string): number[] {
@@ -177,25 +186,7 @@ export class ContextRetriever {
   }
 
   private cosineSimilarity(vectorA: number[], vectorB: number[]): number {
-    if (vectorA.length !== vectorB.length) {
-      throw new Error('Vectors must have the same dimension');
-    }
-
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < vectorA.length; i++) {
-      dotProduct += vectorA[i] * vectorB[i];
-      normA += vectorA[i] * vectorA[i];
-      normB += vectorB[i] * vectorB[i];
-    }
-
-    if (normA === 0 || normB === 0) {
-      return 0;
-    }
-
-    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    return this.embeddingService.cosineSimilarity(vectorA, vectorB);
   }
 
   private applyFilters(
@@ -239,12 +230,15 @@ export class ContextRetriever {
       // Split document into chunks
       const chunks = this.chunkDocument(document.content);
       
-      // Generate embeddings for each chunk
+      // Generate embeddings for each chunk in batch for efficiency
       const embeddings: EmbeddingVector[] = [];
+      
+      // Batch generate embeddings
+      const vectors = await this.embeddingService.generateBatchEmbeddings(chunks);
       
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
-        const vector = await this.getEmbedding(chunk);
+        const vector = vectors[i];
         
         embeddings.push({
           id: `${document.id}-chunk-${i}`,

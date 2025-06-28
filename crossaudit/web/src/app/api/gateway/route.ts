@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateAuth, checkRateLimit } from '@/lib/auth-middleware';
 import { LLMGateway } from '@/gateway/proxy';
 import { ProviderManager } from '@/gateway/providers/manager';
 import { EvaluatorMesh } from '@/evaluators/mesh';
@@ -48,10 +49,38 @@ function initializeGateway() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate authentication
+    const auth = await validateAuth(request);
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { error: auth.error || 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Check rate limits
+    const rateLimitOk = await checkRateLimit(
+      auth.user!.id,
+      'gateway',
+      100, // 100 requests
+      60000 // per minute
+    );
+    
+    if (!rateLimitOk) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded' },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     
     // Validate request
-    const { messages, model, clientId, userId, ...options } = body;
+    const { messages, model, ...options } = body;
+    
+    // Use authenticated user's organization as clientId
+    const clientId = auth.user!.organizationId;
+    const userId = auth.user!.id;
     
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json(
@@ -67,12 +96,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!clientId || typeof clientId !== 'string') {
-      return NextResponse.json(
-        { error: 'Invalid request: clientId is required' },
-        { status: 400 }
-      );
-    }
+    // ClientId is now derived from authenticated user
 
     // Construct LLM request
     const llmRequest: LLMRequest = {

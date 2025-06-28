@@ -109,7 +109,8 @@ export async function GET(request: NextRequest) {
 
         // Determine redirect URL
         const redirectTo = state ? decodeURIComponent(state) : '/app'
-        const finalRedirect = profile?.first_time ? '/onboarding' : redirectTo
+        // For now, always redirect to /app to avoid auth timing issues
+        const finalRedirect = redirectTo
         
         // Update response redirect URL
         response = NextResponse.redirect(new URL(finalRedirect, requestUrl.origin))

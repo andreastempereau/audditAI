@@ -2,8 +2,9 @@ import { LLMRequest, LLMResponse, EvaluationResult, ProviderType } from './types
 import { EvaluatorMesh } from '../evaluators/mesh';
 import { AuditLogger } from '../audit/logger';
 import { PolicyEngine } from '../policy/engine';
-import { ProviderManager } from './providers/manager';
+import { ProviderManager, StreamCallbacks } from './providers/manager';
 import { ContextRetriever } from '../vectordb/context-retriever';
+import { llmCache, requestDeduplicator, circuitBreaker } from '@/lib/cache';
 
 export class LLMGateway {
   private providerManager: ProviderManager;
@@ -38,16 +39,32 @@ export class LLMGateway {
       // 1. Log incoming request
       await this.auditLogger.logRequest(requestId, clientId, request, userId);
       
-      // 2. Get relevant context from data room
+      // 2. Check cache first (only for non-streaming requests)
+      if (!request.stream) {
+        const cached = await llmCache.get(request, clientId);
+        if (cached) {
+          console.log('Cache hit for LLM request');
+          return cached;
+        }
+      }
+      
+      // 3. Get relevant context from data room
       const context = await this.getRelevantContext(request, clientId);
       
-      // 3. Augment request with context if available
+      // 4. Augment request with context if available
       const augmentedRequest = this.augmentRequestWithContext(request, context);
       
-      // 4. Get initial LLM response
-      const originalResponse = await this.callUpstreamLLM(augmentedRequest);
+      // 5. Get initial LLM response with circuit breaker and deduplication
+      const cacheKey = llmCache.generateCacheKey(augmentedRequest, clientId);
+      const originalResponse = await requestDeduplicator.deduplicate(
+        cacheKey,
+        () => circuitBreaker.execute(
+          `llm-${this.getProviderForModel(request.model)}`,
+          () => this.callUpstreamLLM(augmentedRequest)
+        )
+      );
       
-      // 5. Run through evaluator mesh
+      // 6. Run through evaluator mesh
       const evaluation = await this.evaluatorMesh.evaluate({
         prompt: request.messages,
         response: originalResponse.choices[0].message.content,
@@ -56,7 +73,7 @@ export class LLMGateway {
         documentsUsed: context.map(doc => doc.id)
       });
       
-      // 6. Apply policy decisions
+      // 7. Apply policy decisions
       const finalResponse = await this.applyPolicyDecision(
         originalResponse,
         evaluation,
@@ -64,7 +81,12 @@ export class LLMGateway {
         context
       );
       
-      // 7. Log complete interaction
+      // 8. Cache the response (only if it passed evaluation)
+      if (!request.stream && evaluation.action !== 'BLOCK') {
+        await llmCache.set(request, finalResponse, clientId);
+      }
+      
+      // 9. Log complete interaction
       await this.auditLogger.logComplete(requestId, {
         originalPrompt: request,
         originalResponse: originalResponse.choices[0].message.content,
@@ -231,5 +253,91 @@ export class LLMGateway {
       services,
       timestamp: new Date()
     };
+  }
+
+  // Streaming support
+  async interceptLLMCallStream(
+    request: LLMRequest,
+    clientId: string,
+    userId: string | undefined,
+    callbacks: StreamCallbacks
+  ): Promise<void> {
+    const startTime = Date.now();
+    const requestId = crypto.randomUUID();
+    let fullResponse = '';
+    
+    try {
+      // 1. Log incoming request
+      await this.auditLogger.logRequest(requestId, clientId, request, userId);
+      
+      // 2. Get relevant context
+      const context = await this.getRelevantContext(request, clientId);
+      
+      // 3. Augment request with context
+      const augmentedRequest = this.augmentRequestWithContext(request, context);
+      
+      // 4. Stream from upstream LLM
+      await this.streamUpstreamLLM(augmentedRequest, {
+        onChunk: (chunk: string) => {
+          fullResponse += chunk;
+          callbacks.onChunk(chunk);
+        },
+        onComplete: async () => {
+          try {
+            // 5. Run evaluation on complete response
+            const evaluation = await this.evaluatorMesh.evaluate({
+              prompt: request.messages,
+              response: fullResponse,
+              clientId,
+              context: context.map(doc => doc.content),
+              documentsUsed: context.map(doc => doc.id)
+            });
+            
+            // 6. Apply policy decisions
+            if (evaluation.action === 'BLOCK') {
+              throw new Error(`Content blocked: ${evaluation.violations.join(', ')}`);
+            }
+            
+            if (evaluation.action === 'REWRITE' && evaluation.rewrite) {
+              // Send rewritten content
+              callbacks.onChunk('\n\n[Content has been modified for compliance]\n\n');
+              callbacks.onChunk(evaluation.rewrite);
+            }
+            
+            // 7. Log complete interaction
+            await this.auditLogger.logComplete(requestId, {
+              originalPrompt: request,
+              originalResponse: fullResponse,
+              evaluation,
+              finalResponse: evaluation.rewrite || fullResponse,
+              latency: Date.now() - startTime,
+              documentsUsed: context.map(doc => doc.id),
+              clientId,
+              userId
+            });
+            
+            callbacks.onComplete(evaluation);
+          } catch (error) {
+            callbacks.onError(error as Error);
+          }
+        },
+        onError: async (error: Error) => {
+          await this.auditLogger.logError(requestId, clientId, error, userId);
+          callbacks.onError(error);
+        }
+      });
+      
+    } catch (error) {
+      await this.auditLogger.logError(requestId, clientId, error, userId);
+      callbacks.onError(error as Error);
+    }
+  }
+
+  private async streamUpstreamLLM(
+    request: LLMRequest,
+    callbacks: StreamCallbacks
+  ): Promise<void> {
+    const provider = this.getProviderForModel(request.model);
+    return await this.providerManager.streamProvider(provider, request, callbacks);
   }
 }

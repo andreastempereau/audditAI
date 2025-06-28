@@ -1,4 +1,4 @@
-import { LLMProvider } from './manager';
+import { LLMProvider, StreamCallbacks } from './manager';
 import { ProviderConfig, LLMRequest, LLMResponse } from '../types';
 
 export class OpenAIProvider implements LLMProvider {
@@ -127,5 +127,91 @@ export class OpenAIProvider implements LLMProvider {
 
   async rateLimitStatus() {
     return { ...this.rateLimitState };
+  }
+
+  async stream(request: LLMRequest, callbacks: StreamCallbacks): Promise<void> {
+    try {
+      const response = await fetch(
+        this.config.baseUrl || 'https://api.openai.com/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.config.apiKey}`,
+            'User-Agent': 'CrossAudit-AI-Gateway/1.0'
+          },
+          body: JSON.stringify({
+            model: request.model,
+            messages: request.messages,
+            temperature: request.temperature || 0.7,
+            max_tokens: request.max_tokens || 1000,
+            stream: true,
+            user: request.user
+          })
+        }
+      );
+
+      // Update rate limit state from headers
+      this.updateRateLimitState(response.headers);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ 
+          error: { message: `HTTP ${response.status}` } 
+        }));
+        throw new Error(`OpenAI API error: ${error.error?.message || 'Unknown error'}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            callbacks.onComplete();
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.trim() === '') continue;
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              
+              if (data === '[DONE]') {
+                callbacks.onComplete();
+                return;
+              }
+
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  callbacks.onChunk(content);
+                }
+              } catch (e) {
+                console.error('Failed to parse streaming chunk:', e);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        callbacks.onError(error as Error);
+        throw error;
+      } finally {
+        reader.releaseLock();
+      }
+    } catch (error) {
+      callbacks.onError(error as Error);
+      throw error;
+    }
   }
 }

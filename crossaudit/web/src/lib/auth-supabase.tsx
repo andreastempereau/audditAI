@@ -83,7 +83,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (profileError) {
         console.error('Error fetching profile:', profileError);
-        return null;
+        // For OAuth users, create a basic profile if it doesn't exist
+        if (profileError.code === 'PGRST116') { // Row not found
+          console.log('Profile not found, creating basic profile for OAuth user');
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert({
+              id: supabaseUser.id,
+              email: supabaseUser.email,
+              name: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name,
+              picture_url: supabaseUser.user_metadata?.avatar_url || supabaseUser.user_metadata?.picture,
+              first_time: true,
+              mfa_enabled: false
+            })
+            .select('*')
+            .single();
+          
+          if (createError) {
+            console.error('Error creating profile in auth provider:', createError);
+            return null;
+          }
+          
+          // Use the newly created profile
+          profile = newProfile;
+        } else {
+          return null;
+        }
       }
 
       // Get user organizations
@@ -101,6 +126,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (orgsError) {
         console.error('Error fetching organizations:', orgsError);
+        // Continue without organizations - OAuth users might not have orgs initially
       }
 
       const organizations: UserOrganization[] = (userOrgs || []).map((item: any) => ({
@@ -129,7 +155,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Set user and session
   const setUserAndSession = useCallback(async (session: Session | null) => {
     if (session?.user) {
+      console.log('Setting user and session for:', session.user.id);
       const userProfile = await fetchUserProfile(session.user);
+      console.log('Fetched user profile:', userProfile);
       setState(prev => ({
         ...prev,
         user: userProfile,
@@ -138,6 +166,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         isLoading: false,
         error: null,
       }));
+      console.log('Auth state updated - isAuthenticated:', !!userProfile);
     } else {
       setState(prev => ({
         ...prev,

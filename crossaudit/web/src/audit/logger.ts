@@ -1,5 +1,6 @@
 import { createHash, createHmac } from 'crypto';
 import { AuditEvent, LLMRequest, ProvenanceInfo } from '../gateway/types';
+import { webhookService, WebhookEvent } from '@/lib/webhooks';
 
 interface AuditLogEntry {
   id: string;
@@ -114,10 +115,66 @@ export class AuditLogger {
       entry.signature = this.signEntry(entry);
 
       await this.storeEntry(data.clientId, entry);
+      
+      // Send webhook notifications based on evaluation results
+      await this.sendWebhookNotifications(data);
 
     } catch (error) {
       console.error('Failed to log completion:', error);
       throw error;
+    }
+  }
+
+  private async sendWebhookNotifications(data: CompletionData): Promise<void> {
+    try {
+      const event: WebhookEvent = {
+        id: crypto.randomUUID(),
+        type: this.getWebhookEventType(data.evaluation),
+        timestamp: new Date(),
+        organizationId: data.clientId,
+        data: {
+          requestId: crypto.randomUUID(),
+          userId: data.userId,
+          violations: data.evaluation.violations,
+          evaluationScores: data.evaluation.evaluationScores,
+          originalContent: data.originalResponse.substring(0, 500), // Truncate for privacy
+          rewrittenContent: data.evaluation.action === 'REWRITE' ? data.finalResponse.substring(0, 500) : undefined,
+          severity: this.getSeverityLevel(data.evaluation)
+        }
+      };
+
+      await webhookService.sendWebhook(event);
+    } catch (error) {
+      console.error('Failed to send webhook notification:', error);
+      // Don't throw - webhook failures shouldn't stop audit logging
+    }
+  }
+
+  private getWebhookEventType(evaluation: any): WebhookEvent['type'] {
+    switch (evaluation.action) {
+      case 'BLOCK':
+        return 'content.blocked';
+      case 'REWRITE':
+        return 'content.rewritten';
+      case 'FLAG':
+        return 'policy.violation';
+      default:
+        return 'evaluation.completed';
+    }
+  }
+
+  private getSeverityLevel(evaluation: any): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
+    const score = evaluation.evaluationScores.overall;
+    const violationCount = evaluation.violations.length;
+    
+    if (evaluation.action === 'BLOCK' || score < 0.3) {
+      return 'CRITICAL';
+    } else if (evaluation.action === 'REWRITE' || score < 0.6 || violationCount > 3) {
+      return 'HIGH';
+    } else if (evaluation.action === 'FLAG' || score < 0.8 || violationCount > 0) {
+      return 'MEDIUM';
+    } else {
+      return 'LOW';
     }
   }
 

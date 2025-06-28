@@ -6,12 +6,19 @@ import { CohereProvider } from './cohere';
 
 export interface LLMProvider {
   call(request: LLMRequest): Promise<LLMResponse>;
+  stream?(request: LLMRequest, callbacks: StreamCallbacks): Promise<void>;
   healthCheck(): Promise<boolean>;
   rateLimitStatus(): Promise<{
     requestsRemaining: number;
     tokensRemaining: number;
     resetAt: Date;
   }>;
+}
+
+export interface StreamCallbacks {
+  onChunk: (chunk: string) => void;
+  onComplete: (evaluation?: any) => void;
+  onError: (error: Error) => void;
 }
 
 export class ProviderManager {
@@ -111,7 +118,7 @@ export class ProviderManager {
   }>> {
     const status: Record<string, any> = {};
     
-    for (const [type, provider] of this.providers) {
+    for (const [type, provider] of Array.from(this.providers.entries())) {
       try {
         const [healthy, rateLimits] = await Promise.all([
           provider.healthCheck(),
@@ -148,6 +155,43 @@ export class ProviderManager {
       case 'cohere':
         this.providers.set('cohere', new CohereProvider(config));
         break;
+    }
+  }
+
+  async streamProvider(
+    providerType: ProviderType,
+    request: LLMRequest,
+    callbacks: StreamCallbacks
+  ): Promise<void> {
+    const provider = this.providers.get(providerType);
+    if (!provider) {
+      throw new Error(`Provider ${providerType} not configured`);
+    }
+
+    // Check if provider supports streaming
+    if (!provider.stream) {
+      throw new Error(`Provider ${providerType} does not support streaming`);
+    }
+
+    // Check rate limits before streaming
+    const rateLimitStatus = await provider.rateLimitStatus();
+    if (rateLimitStatus.requestsRemaining <= 0) {
+      throw new Error(`Rate limit exceeded for provider ${providerType}`);
+    }
+
+    try {
+      return await provider.stream(request, callbacks);
+    } catch (error) {
+      console.error(`Error streaming from provider ${providerType}:`, error);
+      
+      // Try fallback provider if available
+      const fallbackProvider = this.getFallbackProvider(providerType);
+      if (fallbackProvider && fallbackProvider !== providerType) {
+        console.log(`Falling back to ${fallbackProvider} for streaming`);
+        return await this.streamProvider(fallbackProvider, request, callbacks);
+      }
+      
+      throw error;
     }
   }
 }
