@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withPermission } from '@/lib/auth-middleware';
 import { pluginManager, EvaluatorContext } from '@/evaluators/plugin-framework';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/evaluators/test - Test an evaluator with sample data
 export const POST = withPermission('evaluators.write')(async (request) => {
   try {

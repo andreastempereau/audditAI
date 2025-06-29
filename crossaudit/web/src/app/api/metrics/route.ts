@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { aiGovernanceMetrics } from '@/lib/metrics';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Basic auth check for metrics endpoint

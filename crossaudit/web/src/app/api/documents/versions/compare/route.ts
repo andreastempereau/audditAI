@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withPermission } from '@/lib/auth-middleware';
 import { documentVersioningService } from '@/lib/document-versioning';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/documents/versions/compare - Compare two document versions
 export const POST = withPermission('documents.read')(async (request) => {
   try {

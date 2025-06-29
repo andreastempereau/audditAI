@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withPermission } from '@/lib/auth-middleware';
 import { rbacService, Role } from '@/lib/rbac';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/rbac/roles - List roles
 export const GET = withPermission('roles.read')(async (request) => {
   try {

@@ -144,13 +144,25 @@ export function OnboardingWizard({ isOpen, onComplete }: OnboardingWizardProps) 
   const onSubmit = async (data: OnboardingFormData) => {
     console.log('Form submitted with data:', data);
     console.log('Current user:', user);
+    console.log('Auth loading:', authLoading);
+    console.log('Is authenticated:', isAuthenticated);
     console.log('Email inputs:', emailInputs);
     
-    if (!user) {
+    if (!isAuthenticated) {
       console.error('User not authenticated');
       alert('❌ User not authenticated. Please refresh and try again.');
       return;
     }
+
+    // Get current user from Supabase session
+    const { data: { user: sessionUser }, error: userError } = await supabase.auth.getUser();
+    if (userError || !sessionUser) {
+      console.error('Cannot get current user:', userError);
+      alert('❌ Cannot identify user. Please refresh and try again.');
+      return;
+    }
+
+    const userId = sessionUser.id;
 
     // Validate form data
     const validEmails = emailInputs.filter(email => email.trim() && email.includes('@'));
@@ -177,61 +189,75 @@ export function OnboardingWizard({ isOpen, onComplete }: OnboardingWizardProps) 
         .insert({
           name: data.organizationName,
           tier: 'free',
-          created_by: user.id,
+          owner_id: userId,
         })
         .select()
         .single();
 
       if (orgError) {
-        throw orgError;
+        console.error('Organization creation error:', orgError);
+        throw new Error(`Failed to create organization: ${orgError.message}`);
       }
+
+      console.log('Organization created successfully:', orgData);
 
       // Add user as owner to the organization
       const { error: userOrgError } = await supabase
         .from('user_organizations')
         .insert({
-          user_id: user.id,
+          user_id: userId,
           org_id: orgData.id,
           role: 'owner',
         });
 
       if (userOrgError) {
-        throw userOrgError;
+        console.error('User organization relationship error:', userOrgError);
+        throw new Error(`Failed to add user to organization: ${userOrgError.message}`);
       }
+
+      console.log('User added to organization successfully');
 
       // Send team invitations
       if (validEmails.length > 0) {
-        await sendTeamInvitations(validEmails, orgData.id, data.organizationName);
+        await sendTeamInvitations(validEmails, orgData.id, data.organizationName, userId);
       }
 
       // Update user profile
+      console.log('Updating user profile to mark onboarding complete...');
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
           first_time: false,
         })
-        .eq('id', user.id);
+        .eq('id', userId);
 
       if (profileError) {
-        console.warn('Failed to update profile:', profileError);
+        console.error('Failed to update profile:', profileError);
+        throw new Error(`Failed to update profile: ${profileError.message}`);
       }
 
+      console.log('Profile updated successfully - onboarding complete!');
       onComplete();
     } catch (error) {
       console.error('Onboarding failed:', error);
-      alert('Failed to complete setup. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`❌ Setup failed: ${errorMessage}\n\nPlease check the console for details and try again.`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const sendTeamInvitations = async (emails: string[], orgId: string, orgName: string) => {
+  const sendTeamInvitations = async (emails: string[], orgId: string, orgName: string, invitedBy: string) => {
     try {
+      // Get current user for inviter name
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const inviterName = user?.name || currentUser?.user_metadata?.full_name || currentUser?.email || 'Someone';
+
       // Create invitation records in database
       const invitations = emails.map(email => ({
         email,
         organization_id: orgId,
-        invited_by: user?.id,
+        invited_by: invitedBy,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
       }));
 
@@ -260,7 +286,7 @@ export function OnboardingWizard({ isOpen, onComplete }: OnboardingWizardProps) 
             body: JSON.stringify({
               email,
               organizationName: orgName,
-              inviterName: user?.name || user?.email || 'Someone',
+              inviterName,
               inviteLink,
             }),
           });

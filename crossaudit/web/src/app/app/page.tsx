@@ -3,7 +3,6 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { useChat } from '@/lib/hooks/useChat';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 
 export default function Chat() {
   const [message, setMessage] = useState('');

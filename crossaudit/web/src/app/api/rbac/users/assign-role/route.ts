@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withPermission } from '@/lib/auth-middleware';
 import { rbacService } from '@/lib/rbac';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/rbac/users/assign-role - Assign role to user
 export const POST = withPermission('roles.assign')(async (request) => {
   try {

@@ -73,50 +73,64 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Fetch user profile and organizations
   const fetchUserProfile = useCallback(async (supabaseUser: SupabaseUser): Promise<User | null> => {
+    console.log('fetchUserProfile called for user:', supabaseUser.id);
+    
     try {
       // Get user profile
-      const { data: profile, error: profileError } = await supabase
+      let { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', supabaseUser.id)
         .single();
 
+      console.log('Profile lookup result:', { profile, profileError });
+
       if (profileError) {
         console.error('Error fetching profile:', profileError);
-        // For OAuth users, create a basic profile if it doesn't exist
+        // For OAuth users, the database trigger should have created the profile
         if (profileError.code === 'PGRST116') { // Row not found
-          console.log('Profile not found, creating basic profile for OAuth user');
-          const { data: newProfile, error: createError } = await supabase
-            .from('profiles')
-            .insert({
-              id: supabaseUser.id,
-              email: supabaseUser.email,
-              name: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name,
-              picture_url: supabaseUser.user_metadata?.avatar_url || supabaseUser.user_metadata?.picture,
-              first_time: true,
-              mfa_enabled: false
-            })
-            .select('*')
-            .single();
+          console.log('Profile not found, waiting for database trigger...');
           
-          if (createError) {
-            console.error('Error creating profile in auth provider:', createError);
-            return null;
+          // Try multiple times with increasing delays
+          let retryCount = 0;
+          const maxRetries = 3;
+          
+          while (retryCount < maxRetries) {
+            const waitTime = Math.min(1000 * (retryCount + 1), 3000); // 1s, 2s, 3s max
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            
+            const { data: retryProfile, error: retryError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', supabaseUser.id)
+              .single();
+            
+            if (retryProfile) {
+              console.log(`Profile found on retry ${retryCount + 1}:`, retryProfile);
+              profile = retryProfile;
+              break;
+            }
+            
+            retryCount++;
+            console.log(`Profile not found on retry ${retryCount}/${maxRetries}`);
           }
           
-          // Use the newly created profile
-          profile = newProfile;
+          if (!profile) {
+            console.error('Profile still not found after all retries');
+            return null;
+          }
         } else {
+          console.error('Profile error that is not row not found:', profileError);
           return null;
         }
       }
 
-      // Get user organizations
+      // Get user organizations (use left join to allow users without orgs)
       const { data: userOrgs, error: orgsError } = await supabase
         .from('user_organizations')
         .select(`
           role,
-          organizations!inner(
+          organizations(
             id,
             name,
             tier
@@ -124,19 +138,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
         `)
         .eq('user_id', supabaseUser.id);
 
+      console.log('Organizations lookup result:', { userOrgs, orgsError });
+
       if (orgsError) {
         console.error('Error fetching organizations:', orgsError);
         // Continue without organizations - OAuth users might not have orgs initially
       }
 
-      const organizations: UserOrganization[] = (userOrgs || []).map((item: any) => ({
-        id: item.organizations.id,
-        name: item.organizations.name,
-        role: item.role as 'owner' | 'admin' | 'member',
-        tier: item.organizations.tier as 'free' | 'pro' | 'enterprise',
-      }));
+      const organizations: UserOrganization[] = (userOrgs || [])
+        .filter((item: any) => item.organizations) // Filter out null organizations
+        .map((item: any) => ({
+          id: item.organizations.id,
+          name: item.organizations.name,
+          role: item.role as 'owner' | 'admin' | 'member',
+          tier: item.organizations.tier as 'free' | 'pro' | 'enterprise',
+        }));
 
-      return {
+      const userProfile = {
         id: supabaseUser.id,
         email: supabaseUser.email || '',
         name: profile.name || undefined,
@@ -146,6 +164,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         createdAt: profile.created_at,
         organizations,
       };
+
+      console.log('Returning user profile:', userProfile);
+      return userProfile;
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
       return null;
@@ -154,27 +175,52 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Set user and session
   const setUserAndSession = useCallback(async (session: Session | null) => {
-    if (session?.user) {
-      console.log('Setting user and session for:', session.user.id);
-      const userProfile = await fetchUserProfile(session.user);
-      console.log('Fetched user profile:', userProfile);
+    try {
+      if (session?.user) {
+        console.log('Setting user and session for:', session.user.id);
+        const userProfile = await fetchUserProfile(session.user);
+        console.log('Fetched user profile:', userProfile);
+        
+        if (userProfile) {
+          setState(prev => ({
+            ...prev,
+            user: userProfile,
+            session,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          }));
+          console.log('Auth state updated - authenticated with profile');
+        } else {
+          // User has session but no profile - still consider them authenticated
+          // This handles cases where profile creation failed but OAuth succeeded
+          console.log('User has session but no profile - considering authenticated');
+          setState(prev => ({
+            ...prev,
+            user: null,
+            session,
+            isAuthenticated: true, // They have a valid session
+            isLoading: false,
+            error: 'Profile not found - please complete setup',
+          }));
+        }
+      } else {
+        console.log('No session - user not authenticated');
+        setState(prev => ({
+          ...prev,
+          user: null,
+          session: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+        }));
+      }
+    } catch (error) {
+      console.error('Error in setUserAndSession:', error);
       setState(prev => ({
         ...prev,
-        user: userProfile,
-        session,
-        isAuthenticated: !!userProfile,
         isLoading: false,
-        error: null,
-      }));
-      console.log('Auth state updated - isAuthenticated:', !!userProfile);
-    } else {
-      setState(prev => ({
-        ...prev,
-        user: null,
-        session: null,
-        isAuthenticated: false,
-        isLoading: false,
-        error: null,
+        error: 'Failed to load user profile',
       }));
     }
   }, [fetchUserProfile]);
@@ -312,10 +358,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     clearError();
 
     try {
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      console.log('OAuth redirect URL:', redirectTo);
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo,
         },
       });
 
@@ -327,6 +376,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (error) {
       const message = error instanceof AuthError ? error.message : 'OAuth sign in failed';
       setError(message);
+      setLoading(false);
       throw error;
     }
   }, [supabase.auth, setLoading, clearError, setError]);
@@ -424,7 +474,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw error;
       }
 
-      // Refresh user profile
+      // Immediately update the local user state with the changes
+      setState(prev => ({
+        ...prev,
+        user: prev.user ? { ...prev.user, firstTime: updates.first_time ?? prev.user.firstTime } : null,
+        isLoading: false
+      }));
+
+      // Also refresh user profile from database
       if (state.session) {
         await setUserAndSession(state.session);
       }

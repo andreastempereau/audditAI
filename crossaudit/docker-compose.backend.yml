@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: crossaudit-postgres
+    environment:
+      POSTGRES_DB: crossaudit
+      POSTGRES_USER: crossaudit_user
+      POSTGRES_PASSWORD: crossaudit_password
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crossaudit_user -d crossaudit"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crossaudit-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: crossaudit-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass crossaudit_redis_password
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - crossaudit-network
+
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: crossaudit-minio
+    environment:
+      MINIO_ROOT_USER: crossaudit_minio
+      MINIO_ROOT_PASSWORD: crossaudit_minio_password
+    ports:
+      - "9001:9000"
+      - "9002:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - crossaudit-network
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: crossaudit-backend
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://crossaudit_user:crossaudit_password@postgres:5432/crossaudit
+      
+      # Redis
+      REDIS_URL: redis://:crossaudit_redis_password@redis:6379/0
+      
+      # JWT
+      JWT_SECRET_KEY: your-super-secret-jwt-key-change-in-production
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: 7
+      
+      # MinIO
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: crossaudit_minio
+      MINIO_SECRET_KEY: crossaudit_minio_password
+      MINIO_BUCKET: crossaudit-documents
+      MINIO_SECURE: "false"
+      
+      # App settings
+      DEBUG: "true"
+      ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:3001"
+      ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
+      
+    ports:
+      - "9000:9000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    networks:
+      - crossaudit-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  crossaudit-network:
+    driver: bridge

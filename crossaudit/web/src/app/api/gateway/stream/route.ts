@@ -8,6 +8,8 @@ import { PolicyEngine } from '@/policy/engine';
 import { ContextRetriever } from '@/vectordb/context-retriever';
 import { LLMRequest } from '@/gateway/types';
 
+export const dynamic = 'force-dynamic';
+
 // Initialize gateway (reuse from main route)
 let gateway: LLMGateway | null = null;
 

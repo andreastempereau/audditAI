@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withPermission } from '@/lib/auth-middleware';
 import { documentVersioningService } from '@/lib/document-versioning';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/documents/versions/[documentId]/[version] - Get specific version
 export const GET = withPermission('documents.read')(async (request) => {
   try {

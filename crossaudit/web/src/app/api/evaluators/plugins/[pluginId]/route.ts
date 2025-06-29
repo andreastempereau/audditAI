@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withPermission } from '@/lib/auth-middleware';
 import { pluginManager } from '@/evaluators/plugin-framework';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/evaluators/plugins/[pluginId] - Get plugin details
 export const GET = withPermission('evaluators.read')(async (request) => {
   try {

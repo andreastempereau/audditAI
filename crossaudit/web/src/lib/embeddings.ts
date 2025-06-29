@@ -1,9 +1,5 @@
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export interface EmbeddingService {
   generateEmbedding(text: string): Promise<number[]>;
   generateBatchEmbeddings(texts: string[]): Promise<number[][]>;
@@ -13,10 +9,20 @@ export interface EmbeddingService {
 export class OpenAIEmbeddingService implements EmbeddingService {
   private model = 'text-embedding-3-small'; // Or text-embedding-3-large for better quality
   private dimension = 1536; // Default dimension for small model
+  private openai: OpenAI | null = null;
+
+  private getOpenAI(): OpenAI {
+    if (!this.openai) {
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-build',
+      });
+    }
+    return this.openai;
+  }
 
   async generateEmbedding(text: string): Promise<number[]> {
     try {
-      const response = await openai.embeddings.create({
+      const response = await this.getOpenAI().embeddings.create({
         model: this.model,
         input: text,
         encoding_format: 'float',
@@ -32,7 +38,7 @@ export class OpenAIEmbeddingService implements EmbeddingService {
   async generateBatchEmbeddings(texts: string[]): Promise<number[][]> {
     try {
       // OpenAI supports batch embeddings
-      const response = await openai.embeddings.create({
+      const response = await this.getOpenAI().embeddings.create({
         model: this.model,
         input: texts,
         encoding_format: 'float',

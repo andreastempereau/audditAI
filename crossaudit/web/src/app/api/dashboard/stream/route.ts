@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAuth } from '@/lib/auth-middleware';
 
+export const dynamic = 'force-dynamic';
+
 // WebSocket endpoint for real-time dashboard data
 export async function GET(request: NextRequest) {
   try {

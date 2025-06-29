@@ -3,6 +3,8 @@ import { documentProcessor } from '@/lib/document-processor';
 import { validateAuth } from '@/lib/auth-middleware';
 import { aiGovernanceMetrics } from '@/lib/metrics';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     // Validate authentication

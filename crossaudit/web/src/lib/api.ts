@@ -227,7 +227,7 @@ export interface OnboardingData {
 
 // Create API client
 const api = ky.create({
-  prefixUrl: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000',
+  prefixUrl: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000',
   timeout: 30000,
   retry: {
     limit: 2,

@@ -3,6 +3,8 @@ import { withPermission } from '@/lib/auth-middleware';
 import { aiGovernanceMetrics } from '@/lib/metrics';
 import { alertingService } from '@/lib/alerts';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/dashboard/metrics - Get current dashboard metrics
 export const GET = withPermission('system.monitor')(async (request) => {
   try {

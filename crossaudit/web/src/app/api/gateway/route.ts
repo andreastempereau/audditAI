@@ -8,6 +8,8 @@ import { PolicyEngine } from '@/policy/engine';
 import { ContextRetriever } from '@/vectordb/context-retriever';
 import { LLMRequest, ProviderConfig } from '@/gateway/types';
 
+export const dynamic = 'force-dynamic';
+
 // Initialize the AI governance gateway
 let gateway: LLMGateway | null = null;
 

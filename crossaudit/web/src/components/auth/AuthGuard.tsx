@@ -2,7 +2,6 @@
 import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-supabase';
-import { OnboardingWizard } from './OnboardingWizard';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -20,10 +19,13 @@ export function AuthGuard({
   const pathname = usePathname();
 
   useEffect(() => {
+    console.log('AuthGuard effect:', { isLoading, isAuthenticated, requireAuth, pathname });
+    
     if (isLoading) return; // Wait for auth state to load
 
     if (requireAuth && !isAuthenticated) {
       // Redirect to login with current path as return URL
+      console.log('Redirecting to login - not authenticated');
       const returnUrl = encodeURIComponent(pathname || '/app');
       router.push(`${redirectTo}?redirect=${returnUrl}`);
       return;
@@ -31,6 +33,7 @@ export function AuthGuard({
 
     if (!requireAuth && isAuthenticated) {
       // User is authenticated but on a public route (like login)
+      console.log('Redirecting to app - already authenticated');
       router.push('/app');
       return;
     }
@@ -55,17 +58,11 @@ export function AuthGuard({
     return null;
   }
 
-  // Show onboarding wizard if user is authenticated but needs onboarding
-  if (requireAuth && isAuthenticated && user?.firstTime) {
-    return (
-      <OnboardingWizard
-        isOpen={true}
-        onComplete={() => {
-          // Refresh user data after onboarding
-          window.location.reload();
-        }}
-      />
-    );
+  // Redirect to onboarding if user is authenticated but needs onboarding
+  if (requireAuth && isAuthenticated && user?.firstTime && pathname !== '/onboarding') {
+    console.log('User needs onboarding, redirecting');
+    router.push('/onboarding');
+    return null;
   }
 
   return <>{children}</>;
