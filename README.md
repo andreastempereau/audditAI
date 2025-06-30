@@ -1,4 +1,4 @@
-# CrossAudit AI
+# Auddit AI (CrossAudit AI)
 
 > **Real‑time, multi‑model AI‑response governance with auditable data provenance.**
 
