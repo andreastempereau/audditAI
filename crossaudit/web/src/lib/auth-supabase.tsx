@@ -76,21 +76,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     console.log('fetchUserProfile called for user:', supabaseUser.id);
     
     try {
-      // Get user profile with a timeout
-      const profilePromise = supabase
+      // Get user profile
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', supabaseUser.id)
         .single();
-
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Profile query timeout')), 5000);
-      });
-
-      const { data: profile, error: profileError } = await Promise.race([
-        profilePromise,
-        timeoutPromise
-      ]);
 
       console.log('Profile lookup result:', { profile, profileError });
 
@@ -125,48 +116,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (session?.user) {
         console.log('Setting user and session for:', session.user.id);
         
-        // Set a timeout to prevent infinite loading
-        const profilePromise = fetchUserProfile(session.user);
-        const timeoutPromise = new Promise<null>((_, reject) => {
-          setTimeout(() => reject(new Error('Profile fetch timeout')), 10000);
-        });
+        // Fetch user profile
+        const userProfile = await fetchUserProfile(session.user);
+        console.log('Fetched user profile:', userProfile);
         
-        try {
-          const userProfile = await Promise.race([profilePromise, timeoutPromise]);
-          console.log('Fetched user profile:', userProfile);
-          
-          if (userProfile) {
-            setState(prev => ({
-              ...prev,
-              user: userProfile,
-              session,
-              isAuthenticated: true,
-              isLoading: false,
-              error: null,
-            }));
-            console.log('Auth state updated - authenticated with profile');
-          } else {
-            // User has session but no profile - still consider them authenticated
-            console.log('User has session but no profile - considering authenticated');
-            setState(prev => ({
-              ...prev,
-              user: null,
-              session,
-              isAuthenticated: true, // They have a valid session
-              isLoading: false,
-              error: 'Profile not found - please complete setup',
-            }));
-          }
-        } catch (profileError) {
-          console.error('Profile fetch failed or timed out:', profileError);
-          // Still mark as authenticated since they have a valid session
+        if (userProfile) {
+          setState(prev => ({
+            ...prev,
+            user: userProfile,
+            session,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          }));
+          console.log('Auth state updated - authenticated with profile');
+        } else {
+          // User has session but no profile - still consider them authenticated
+          console.log('User has session but no profile - considering authenticated');
           setState(prev => ({
             ...prev,
             user: null,
             session,
-            isAuthenticated: true,
+            isAuthenticated: true, // They have a valid session
             isLoading: false,
-            error: 'Profile loading failed - please refresh',
+            error: 'Profile not found - please complete setup',
           }));
         }
       } else {
