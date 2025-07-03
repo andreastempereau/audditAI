@@ -71,11 +71,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setState(prev => ({ ...prev, isLoading }));
   }, []);
 
-  // Fetch user profile (simplified to avoid RLS issues)
-  const fetchUserProfile = useCallback(async (supabaseUser: SupabaseUser): Promise<User | null> => {
-    console.log('fetchUserProfile called for user:', supabaseUser.id);
+  // Fetch user profile with improved OAuth handling
+  const fetchUserProfile = useCallback(async (supabaseUser: SupabaseUser, retryCount = 0, isOAuthCallback = false): Promise<User | null> => {
+    console.log('fetchUserProfile called for user:', supabaseUser.id, 'retry:', retryCount, 'isOAuth:', isOAuthCallback);
     
     try {
+      // For OAuth users, wait a bit longer on first try to allow server-side profile creation
+      if (isOAuthCallback && retryCount === 0) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
       // Get user profile
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -86,7 +91,79 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('Profile lookup result:', { profile, profileError });
 
       if (profileError || !profile) {
-        console.error('Error fetching profile or profile not found:', profileError);
+        // If profile not found, retry with exponential backoff
+        if (profileError?.code === 'PGRST116' && retryCount < 5) {
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 8000); // Max 8 seconds
+          console.log(`Profile not found, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return fetchUserProfile(supabaseUser, retryCount + 1, isOAuthCallback);
+        }
+        
+        console.error('Error fetching profile or profile not found after retries:', profileError);
+        
+        // For OAuth users, try to create profile via upsert if all retries failed
+        if (profileError?.code === 'PGRST116' && supabaseUser.app_metadata?.provider) {
+          console.log('Attempting to create profile for OAuth user after retries failed');
+          try {
+            const { data: newProfile, error: upsertError } = await supabase
+              .from('profiles')
+              .upsert({
+                id: supabaseUser.id,
+                email: supabaseUser.email,
+                name: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0],
+                picture_url: supabaseUser.user_metadata?.picture || supabaseUser.user_metadata?.avatar_url,
+                first_time: true,
+                mfa_enabled: false,
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'id',
+                ignoreDuplicates: false
+              })
+              .select()
+              .single();
+
+            if (upsertError) {
+              console.error('Client-side profile upsert failed:', upsertError);
+              // Return minimal profile to allow user to continue
+              return {
+                id: supabaseUser.id,
+                email: supabaseUser.email || '',
+                name: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || '',
+                pictureUrl: supabaseUser.user_metadata?.picture || supabaseUser.user_metadata?.avatar_url || undefined,
+                mfaEnabled: false,
+                firstTime: true,
+                createdAt: new Date().toISOString(),
+                organizations: [],
+              };
+            } else {
+              console.log('Client-side profile created successfully:', newProfile);
+              return {
+                id: supabaseUser.id,
+                email: supabaseUser.email || '',
+                name: newProfile.name || undefined,
+                pictureUrl: newProfile.picture_url || undefined,
+                mfaEnabled: newProfile.mfa_enabled || false,
+                firstTime: newProfile.first_time || false,
+                createdAt: newProfile.created_at,
+                organizations: [],
+              };
+            }
+          } catch (createError) {
+            console.error('Error creating profile on client:', createError);
+            // Return minimal profile as last resort
+            return {
+              id: supabaseUser.id,
+              email: supabaseUser.email || '',
+              name: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || '',
+              pictureUrl: supabaseUser.user_metadata?.picture || supabaseUser.user_metadata?.avatar_url || undefined,
+              mfaEnabled: false,
+              firstTime: true,
+              createdAt: new Date().toISOString(),
+              organizations: [],
+            };
+          }
+        }
+        
         return null;
       }
 
@@ -111,13 +188,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [supabase]);
 
   // Set user and session
-  const setUserAndSession = useCallback(async (session: Session | null) => {
+  const setUserAndSession = useCallback(async (session: Session | null, isOAuthCallback = false) => {
     try {
       if (session?.user) {
-        console.log('Setting user and session for:', session.user.id);
+        console.log('Setting user and session for:', session.user.id, 'isOAuth:', isOAuthCallback);
         
-        // Fetch user profile
-        const userProfile = await fetchUserProfile(session.user);
+        // Fetch user profile with OAuth context
+        const userProfile = await fetchUserProfile(session.user, 0, isOAuthCallback);
         console.log('Fetched user profile:', userProfile);
         
         if (userProfile) {
@@ -181,7 +258,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         if (mounted) {
-          await setUserAndSession(session);
+          // Check if this is an OAuth callback by looking at URL or checking if user has OAuth provider
+          const isOAuthCallback = typeof window !== 'undefined' && 
+            (window.location.search.includes('code=') || 
+             session?.user?.app_metadata?.provider);
+          await setUserAndSession(session, isOAuthCallback);
         }
       } catch (error) {
         console.error('Error in getInitialSession:', error);
@@ -201,7 +282,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('Auth state changed:', event, session?.user?.id);
 
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          await setUserAndSession(session);
+          // Check if this is an OAuth sign-in
+          const isOAuthCallback = event === 'SIGNED_IN' && 
+            (typeof window !== 'undefined' && window.location.search.includes('code=')) ||
+            session?.user?.app_metadata?.provider;
+          await setUserAndSession(session, isOAuthCallback);
         } else if (event === 'SIGNED_OUT') {
           setState(prev => ({
             ...prev,
@@ -296,7 +381,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     clearError();
 
     try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+      const redirectTo = `${siteUrl}/auth/callback`;
       console.log('OAuth redirect URL:', redirectTo);
       
       const { error } = await supabase.auth.signInWithOAuth({
@@ -357,8 +443,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     clearError();
 
     try {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${siteUrl}/reset-password`,
       });
 
       if (error) {

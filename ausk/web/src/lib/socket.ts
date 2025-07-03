@@ -21,7 +21,7 @@ export interface ClientToServerEvents {
 
 // Create socket instance
 export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
-  typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000',
+  typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:8000'),
   {
     autoConnect: false,
     auth: (cb) => {

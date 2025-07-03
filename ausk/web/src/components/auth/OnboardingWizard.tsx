@@ -42,9 +42,10 @@ const USE_CASE_OPTIONS = [
 interface OnboardingWizardProps {
   isOpen: boolean;
   onComplete: () => void;
+  user?: any; // Optional user prop for better handling
 }
 
-export function OnboardingWizard({ isOpen, onComplete }: OnboardingWizardProps) {
+export function OnboardingWizard({ isOpen, onComplete, user }: OnboardingWizardProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);

@@ -20,22 +20,35 @@ export default function OnboardingPage() {
     });
   }, [user, isLoading, isAuthenticated, error]);
 
-  // Set a timeout for loading state
+  // Set a timeout for loading state - longer for OAuth
   useEffect(() => {
+    const isOAuthFlow = typeof window !== 'undefined' && 
+      (window.location.search.includes('code=') || 
+       window.location.href.includes('/onboarding'));
+    
+    const timeout = isOAuthFlow ? 30000 : 15000; // 30s for OAuth, 15s for regular
+    
     const timer = setTimeout(() => {
       if (isLoading) {
         console.log('Auth loading timeout reached');
         setLoadingTimeout(true);
-        setAuthError('Authentication is taking longer than expected. This might be due to profile creation issues.');
+        setAuthError(
+          isOAuthFlow 
+            ? 'OAuth authentication is taking longer than expected. The profile may still be creating.'
+            : 'Authentication is taking longer than expected. This might be due to profile creation issues.'
+        );
       }
-    }, 8000); // 8 second timeout (reduced from 10)
+    }, timeout);
 
     return () => clearTimeout(timer);
   }, [isLoading]);
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated (but be more lenient for OAuth flows)
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    const isOAuthFlow = typeof window !== 'undefined' && window.location.search.includes('code=');
+    
+    // Don't redirect immediately for OAuth flows
+    if (!isLoading && !isAuthenticated && !isOAuthFlow) {
       console.log('User not authenticated, redirecting to login');
       router.push('/login');
     }
@@ -111,8 +124,10 @@ export default function OnboardingPage() {
 
   const handleOnboardingComplete = async () => {
     try {
-      // Mark user as no longer first-time
-      await updateProfile({ first_time: false });
+      // Only update profile if user exists
+      if (user) {
+        await updateProfile({ first_time: false });
+      }
       
       // Redirect to dashboard
       router.push('/dashboard');
@@ -124,11 +139,15 @@ export default function OnboardingPage() {
   };
 
   // Show onboarding wizard if authenticated (with or without user profile)
-  if (isAuthenticated) {
+  // For OAuth users, we might not have the user profile immediately
+  const isOAuthFlow = typeof window !== 'undefined' && window.location.search.includes('code=');
+  
+  if (isAuthenticated || (!isLoading && isOAuthFlow)) {
     return (
       <OnboardingWizard
         isOpen={true}
         onComplete={handleOnboardingComplete}
+        user={user} // Pass user to wizard for better handling
       />
     );
   }

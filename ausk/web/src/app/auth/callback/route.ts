@@ -82,41 +82,43 @@ export async function GET(request: NextRequest) {
           // Continue anyway
         }
 
-        // Check if user profile exists (database trigger should have created it)
-        let { data: profile, error: profileSelectError } = await supabase
+        // Ensure profile exists - use UPSERT to handle race conditions
+        console.log('Ensuring profile exists for user:', data.user.id)
+        
+        const { data: profile, error: upsertError } = await supabase
           .from('profiles')
-          .select('*') // Select all fields to debug
-          .eq('id', data.user.id)
+          .upsert({
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || data.user.email?.split('@')[0],
+            picture_url: data.user.user_metadata?.picture || data.user.user_metadata?.avatar_url,
+            first_time: true,
+            mfa_enabled: false,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'id',
+            ignoreDuplicates: false
+          })
+          .select()
           .single()
 
-        console.log('Profile lookup result:', { profile, profileSelectError })
-
-        // If profile doesn't exist, create it manually
-        if (!profile && profileSelectError?.code === 'PGRST116') {
-          console.log('Profile not found, creating manually...')
-          
-          const { data: newProfile, error: insertError } = await supabase
+        if (upsertError) {
+          console.error('Error upserting profile:', upsertError)
+          // Try a simple select in case the profile exists but upsert failed
+          const { data: existingProfile, error: selectError } = await supabase
             .from('profiles')
-            .insert({
-              id: data.user.id,
-              name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || data.user.email?.split('@')[0],
-              email: data.user.email,
-              picture_url: data.user.user_metadata?.picture || data.user.user_metadata?.avatar_url,
-              first_time: true,
-              mfa_enabled: false
-            })
-            .select()
+            .select('*')
+            .eq('id', data.user.id)
             .single()
           
-          if (insertError) {
-            console.error('Error creating profile:', insertError)
-            // Still continue - user can still use the app
+          if (selectError) {
+            console.error('Error selecting existing profile:', selectError)
+            // Continue without profile - client can handle this
           } else {
-            console.log('Profile created successfully:', newProfile)
-            profile = newProfile
+            console.log('Found existing profile after upsert error:', existingProfile)
           }
-        } else if (profile) {
-          console.log('Existing profile found:', profile)
+        } else {
+          console.log('Profile upserted successfully:', profile)
         }
 
         // Determine redirect: onboarding if no user OR user has no organizations
@@ -159,7 +161,10 @@ export async function GET(request: NextRequest) {
           }
         }
         
-        console.log('Redirecting to:', finalRedirect);
+        console.log('OAuth callback complete - redirecting to:', finalRedirect);
+        
+        // Add a small delay to ensure all async operations complete
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Create redirect response with all the cookies from the previous response
         const redirectResponse = NextResponse.redirect(new URL(finalRedirect, requestUrl.origin))
@@ -168,6 +173,9 @@ export async function GET(request: NextRequest) {
         response.cookies.getAll().forEach((cookie) => {
           redirectResponse.cookies.set(cookie.name, cookie.value)
         })
+        
+        // Add a header to indicate this was an OAuth callback
+        redirectResponse.headers.set('X-Auth-Callback', 'oauth')
         
         return redirectResponse
       } else {
