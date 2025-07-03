@@ -32,22 +32,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <title>Ausk - AI Governance Platform</title>
-        <meta name="description" content="Secure, compliant, and intelligent AI governance platform. Build trust with enterprise-grade monitoring, policy enforcement, and real-time insights for your AI systems." />
+        <title>Ausk - AI for Businesses Without the Risk</title>
+        <meta name="description" content="Generative AI for businesses and enterprises without exposing company data. Pure web interface, no code required. Get started in minutes." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://www.ausk.ai/" />
-        <meta property="og:title" content="Ausk - AI Governance Platform" />
-        <meta property="og:description" content="Secure, compliant, and intelligent AI governance platform. Build trust with enterprise-grade monitoring, policy enforcement, and real-time insights for your AI systems." />
+        <meta property="og:title" content="Ausk - AI for Businesses Without the Risk" />
+        <meta property="og:description" content="We believe businesses deserve generative AI, without the risk of exposing company data. Pure web interface, no code required." />
         <meta property="og:image" content="https://www.ausk.ai/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
 
         {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
         <meta property="twitter:url" content="https://www.ausk.ai/" />
-        <meta property="twitter:title" content="Ausk - AI Governance Platform" />
-        <meta property="twitter:description" content="Secure, compliant, and intelligent AI governance platform. Build trust with enterprise-grade monitoring, policy enforcement, and real-time insights for your AI systems." />
+        <meta property="twitter:title" content="Ausk - AI for Businesses Without the Risk" />
+        <meta property="twitter:description" content="We believe businesses deserve generative AI, without the risk of exposing company data. Pure web interface, no code required." />
         <meta property="twitter:image" content="https://www.ausk.ai/og-image.png" />
 
         {/* Favicon */}
