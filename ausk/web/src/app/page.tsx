@@ -7,6 +7,8 @@ import MultiModelDemo from '@/components/landing/MultiModelDemo';
 import Features from '@/components/landing/Features';
 import DataRoomDemo from '@/components/landing/DataRoomDemo';
 import InteractiveTutorial from '@/components/landing/InteractiveTutorial';
+import Hero from '@/components/landing/Hero';
+import BeliefSection from '@/components/landing/BeliefSection';
 
 // Header Component
 const Header = () => {
@@ -35,6 +37,12 @@ const Header = () => {
           </div>
           
           <nav className="hidden md:flex items-center space-x-8">
+            <button 
+              onClick={() => scrollToSection('hero')}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Intro
+            </button>
             <button 
               onClick={() => scrollToSection('multi-model')}
               className="text-gray-600 hover:text-gray-900 transition-colors"
@@ -85,6 +93,12 @@ const Header = () => {
           <div className="md:hidden py-4 border-t border-gray-100">
             <nav className="flex flex-col space-y-4">
               <button 
+                onClick={() => scrollToSection('hero')}
+                className="text-gray-600 hover:text-gray-900 transition-colors text-left"
+              >
+                Intro
+              </button>
+              <button 
                 onClick={() => scrollToSection('multi-model')}
                 className="text-gray-600 hover:text-gray-900 transition-colors text-left"
               >
@@ -128,55 +142,6 @@ const Header = () => {
   );
 };
 
-// Hero Component
-const Hero = () => {
-  const router = useRouter();
-
-  const scrollToMultiModel = () => {
-    const element = document.getElementById('multi-model');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  const handleEnterApp = () => {
-    router.push('/login');
-  };
-
-  return (
-    <section className="pt-24 pb-16 bg-white">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-            AI Safety Made
-            <br />
-            <span className="text-gray-600">Simple</span>
-          </h1>
-          
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-            Automatically check every AI response before it reaches your users. 
-            Stay compliant, reduce risk, and build trust.
-          </p>
-
-          <div className="flex justify-center space-x-4">
-            <button 
-              onClick={scrollToMultiModel}
-              className="border border-gray-300 hover:border-gray-400 text-gray-700 px-8 py-3 rounded-lg font-medium transition-colors"
-            >
-              Watch Demo
-            </button>
-            <button 
-              onClick={handleEnterApp}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
-            >
-              Enter App
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-};
 
 export default function Page() {
   const router = useRouter();
@@ -192,7 +157,12 @@ export default function Page() {
   return (
     <div className="min-h-screen bg-white">
       <Header />
-      <Hero />
+      <div id="belief">
+        <BeliefSection />
+      </div>
+      <div id="hero" className="hero-section">
+        <Hero />
+      </div>
       
       {/* Actual demo components */}
       <div id="multi-model">

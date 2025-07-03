@@ -150,7 +150,7 @@ const DataRoomDemo = () => {
             Welcome to The Data Room
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            A secure, version-controlled repository that gives AI models exactly the information they need—nothing more, nothing less. This ensures that your data is protected and never used by LLMs.
+            A secure, version-controlled repository that fragments company data into untrackable vectors and gives AI models exactly the information they need—<span className="font-semibold text-gray-900">nothing more, nothing less</span>. This ensures that your data is protected and never stored by LLMs.
           </p>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
             <strong>Data so secure, that even WE can't see it.</strong>

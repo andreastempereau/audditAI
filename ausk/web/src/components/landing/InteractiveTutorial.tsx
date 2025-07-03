@@ -199,7 +199,7 @@ X-Ausk-ID: aud_9m3k7x
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold mb-4">Technical Pipeline</h2>
             <p className="text-lg text-gray-300 mb-6">
-              Real-time AI response processing and safety verification
+              See how we do live AI response processing and safety verification
             </p>
             
             <div className="flex justify-center space-x-4 mb-8">
