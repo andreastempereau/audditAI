@@ -32,8 +32,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <title>Ausk</title>
+        <title>Ausk - AI Governance Platform</title>
+        <meta name="description" content="Secure, compliant, and intelligent AI governance platform. Build trust with enterprise-grade monitoring, policy enforcement, and real-time insights for your AI systems." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://www.ausk.ai/" />
+        <meta property="og:title" content="Ausk - AI Governance Platform" />
+        <meta property="og:description" content="Secure, compliant, and intelligent AI governance platform. Build trust with enterprise-grade monitoring, policy enforcement, and real-time insights for your AI systems." />
+        <meta property="og:image" content="https://www.ausk.ai/og-image.png" />
+
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content="https://www.ausk.ai/" />
+        <meta property="twitter:title" content="Ausk - AI Governance Platform" />
+        <meta property="twitter:description" content="Secure, compliant, and intelligent AI governance platform. Build trust with enterprise-grade monitoring, policy enforcement, and real-time insights for your AI systems." />
+        <meta property="twitter:image" content="https://www.ausk.ai/og-image.png" />
+
+        {/* Favicon */}
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/site.webmanifest" />
       </head>
       <body className="min-h-screen antialiased">
         <QueryClientProvider client={queryClient}>
