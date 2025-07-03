@@ -1,4 +1,4 @@
-// Document Versioning System for CrossAudit
+// Document Versioning System for Ausk
 
 import { createHash } from 'crypto';
 import { encryptionService } from './encryption';

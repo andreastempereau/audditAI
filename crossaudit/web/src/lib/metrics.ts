@@ -1,4 +1,4 @@
-// Prometheus metrics for CrossAudit AI Governance Gateway
+// Prometheus metrics for Ausk AI Governance Gateway
 
 export interface MetricsCollector {
   incrementCounter(name: string, labels?: Record<string, string>): void;

@@ -46,7 +46,7 @@ const Benefits = () => {
             Built for Every Team
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            CrossAudit delivers value across your entire organization
+            Ausk delivers value across your entire organization
           </p>
         </div>
 

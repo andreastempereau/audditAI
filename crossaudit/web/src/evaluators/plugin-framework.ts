@@ -1,4 +1,4 @@
-// Custom Evaluator Plugin Framework for CrossAudit
+// Custom Evaluator Plugin Framework for Ausk
 
 export interface EvaluatorContext {
   request: {
@@ -425,7 +425,7 @@ export const EXAMPLE_EVALUATOR_MANIFEST: PluginManifest = {
   name: 'Example Content Filter',
   version: '1.0.0',
   description: 'Example evaluator that filters inappropriate content',
-  author: 'CrossAudit Team',
+  author: 'Ausk Team',
   license: 'MIT',
   keywords: ['content', 'filter', 'safety'],
   evaluators: [{
@@ -433,7 +433,7 @@ export const EXAMPLE_EVALUATOR_MANIFEST: PluginManifest = {
     name: 'Profanity Filter',
     version: '1.0.0',
     description: 'Detects and flags profanity in responses',
-    author: 'CrossAudit Team',
+    author: 'Ausk Team',
     category: 'safety',
     enabled: true,
     priority: 5,

@@ -1,4 +1,4 @@
-// Slack Integration for CrossAudit
+// Slack Integration for Ausk
 
 export interface SlackConfig {
   webhookUrl: string;
@@ -68,7 +68,7 @@ export class SlackIntegration {
     const payload = {
       text: message.text,
       channel: message.channel || this.config.channel,
-      username: message.username || this.config.username || 'CrossAudit',
+      username: message.username || this.config.username || 'Ausk',
       icon_emoji: message.iconEmoji || this.config.iconEmoji || ':shield:',
       icon_url: message.iconUrl || this.config.iconUrl,
       blocks: message.blocks,
@@ -140,11 +140,11 @@ export class SlackIntegration {
     });
 
     const message: SlackMessage = {
-      text: `${emoji} CrossAudit Alert: ${alert.title}`,
+      text: `${emoji} Ausk Alert: ${alert.title}`,
       blocks,
       attachments: [{
         color,
-        footer: 'CrossAudit AI Governance',
+        footer: 'Ausk AI Governance',
         ts: Math.floor(alert.timestamp.getTime() / 1000)
       }]
     };
@@ -227,7 +227,7 @@ export class SlackIntegration {
         type: 'header',
         text: {
           type: 'plain_text',
-          text: `📊 CrossAudit Daily Report - ${report.date}`
+          text: `📊 Ausk Daily Report - ${report.date}`
         }
       },
       {
@@ -286,7 +286,7 @@ export class SlackIntegration {
     }
 
     const message: SlackMessage = {
-      text: `📊 CrossAudit Daily Report - ${report.date}`,
+      text: `📊 Ausk Daily Report - ${report.date}`,
       blocks
     };
 
@@ -303,14 +303,14 @@ export class SlackIntegration {
         type: 'header',
         text: {
           type: 'plain_text',
-          text: '🎉 Welcome to CrossAudit!'
+          text: '🎉 Welcome to Ausk!'
         }
       },
       {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `Hi ${userInfo.userName}! Welcome to CrossAudit AI Governance for ${userInfo.organizationName}.\n\nYou'll receive important alerts and daily reports in this channel.`
+          text: `Hi ${userInfo.userName}! Welcome to Ausk AI Governance for ${userInfo.organizationName}.\n\nYou'll receive important alerts and daily reports in this channel.`
         }
       },
       {
@@ -324,13 +324,13 @@ export class SlackIntegration {
         type: 'actions',
         text: {
           type: 'mrkdwn',
-          text: 'Get started with CrossAudit:'
+          text: 'Get started with Ausk:'
         }
       }
     ];
 
     const message: SlackMessage = {
-      text: `🎉 Welcome to CrossAudit, ${userInfo.userName}!`,
+      text: `🎉 Welcome to Ausk, ${userInfo.userName}!`,
       blocks
     };
 

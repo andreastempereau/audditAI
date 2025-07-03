@@ -21,7 +21,7 @@ export class CohereProvider implements LLMProvider {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.config.apiKey}`,
-          'User-Agent': 'CrossAudit-AI-Gateway/1.0'
+          'User-Agent': 'Ausk-AI-Gateway/1.0'
         },
         body: JSON.stringify({
           model: request.model,
@@ -114,7 +114,7 @@ export class CohereProvider implements LLMProvider {
       const response = await fetch('https://api.cohere.ai/v1/models', {
         headers: {
           'Authorization': `Bearer ${this.config.apiKey}`,
-          'User-Agent': 'CrossAudit-AI-Gateway/1.0'
+          'User-Agent': 'Ausk-AI-Gateway/1.0'
         }
       });
       return response.ok;

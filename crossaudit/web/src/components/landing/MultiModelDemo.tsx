@@ -233,7 +233,7 @@ const MultiModelDemo = () => {
             Multi-Model AI Analysis
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            CrossAudit can work on two sides: for consumer-facing AI modules, as well as employees using generative AI to aid their work.
+            Ausk can work on two sides: for consumer-facing AI modules, as well as employees using generative AI to aid their work.
           </p>
         </div>
 
@@ -278,8 +278,8 @@ const MultiModelDemo = () => {
                 </h3>
                 <p className="text-gray-600">
                   {activeTab === 'customer' 
-                    ? 'External users interact with your AI systems. CrossAudit ensures no sensitive data is exposed and all interactions are secure.'
-                    : 'Employees use AI for content generation and analysis. CrossAudit verifies access permissions, logs data usage, and maintains audit trails.'
+                    ? 'External users interact with your AI systems. Ausk ensures no sensitive data is exposed and all interactions are secure.'
+                    : 'Employees use AI for content generation and analysis. Ausk verifies access permissions, logs data usage, and maintains audit trails.'
                   }
                 </p>
               </div>

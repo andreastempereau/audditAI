@@ -72,7 +72,7 @@ const Header = ({ onMenuClick, sidebarCollapsed }: HeaderProps) => {
             <div className="flex items-center gap-2">
               <Shield className="h-6 w-6 text-primary" />
               <span className="hidden font-bold text-muted-900 dark:text-white sm:block">
-                CrossAudit
+                Ausk
               </span>
             </div>
             

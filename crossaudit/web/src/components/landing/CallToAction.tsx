@@ -38,7 +38,7 @@ const CallToAction = () => {
               Start Your Free Trial
             </h3>
             <p className="text-gray-600 mb-6">
-              Try CrossAudit with your AI system for 30 days, completely free
+              Try Ausk with your AI system for 30 days, completely free
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button className="bg-gray-900 text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors inline-flex items-center justify-center space-x-2">

@@ -9,7 +9,7 @@ const Footer = () => {
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center space-x-2 mb-6">
               <Shield className="h-8 w-8 text-white" />
-              <span className="text-2xl font-bold">CrossAudit</span>
+              <span className="text-2xl font-bold">Ausk</span>
             </div>
             <p className="text-gray-300 mb-6 max-w-md">
               The simple way to make your AI safe and compliant. 
@@ -41,7 +41,7 @@ const Footer = () => {
         <div className="border-t border-gray-700 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-400 text-sm mb-4 md:mb-0">
-              © 2025 CrossAudit. All rights reserved.
+              © 2025 Ausk. All rights reserved.
             </p>
             <div className="flex space-x-6 text-sm">
               <span className="text-gray-400">Privacy Policy</span>

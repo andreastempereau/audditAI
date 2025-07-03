@@ -22,7 +22,7 @@ export class AnthropicProvider implements LLMProvider {
           'Content-Type': 'application/json',
           'x-api-key': this.config.apiKey,
           'anthropic-version': '2023-06-01',
-          'User-Agent': 'CrossAudit-AI-Gateway/1.0'
+          'User-Agent': 'Ausk-AI-Gateway/1.0'
         },
         body: JSON.stringify({
           model: request.model,
@@ -91,7 +91,7 @@ export class AnthropicProvider implements LLMProvider {
           'Content-Type': 'application/json',
           'x-api-key': this.config.apiKey,
           'anthropic-version': '2023-06-01',
-          'User-Agent': 'CrossAudit-AI-Gateway/1.0'
+          'User-Agent': 'Ausk-AI-Gateway/1.0'
         },
         body: JSON.stringify({
           model: 'claude-3-haiku-20240307',

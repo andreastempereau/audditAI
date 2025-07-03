@@ -113,7 +113,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, className }: SidebarProps) => {
               className="flex items-center gap-2"
             >
               <Shield className="h-6 w-6 text-primary" />
-              <span className="font-bold text-muted-900 dark:text-white">CrossAudit</span>
+              <span className="font-bold text-muted-900 dark:text-white">Ausk</span>
             </motion.div>
           )}
           
@@ -153,7 +153,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, className }: SidebarProps) => {
               transition={{ duration: 0.2 }}
               className="text-xs text-muted-500"
             >
-              <div className="mb-1 font-medium">CrossAudit v1.0</div>
+              <div className="mb-1 font-medium">Ausk v1.0</div>
               <div>Enterprise Edition</div>
             </motion.div>
           )}

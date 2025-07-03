@@ -166,7 +166,7 @@ export function PluginManager() {
       name: 'Example Content Filter',
       version: '1.0.0',
       description: 'Example evaluator that filters inappropriate content',
-      author: 'CrossAudit Team',
+      author: 'Ausk Team',
       license: 'MIT',
       keywords: ['content', 'filter', 'safety'],
       evaluators: [{
@@ -174,7 +174,7 @@ export function PluginManager() {
         name: 'Profanity Filter',
         version: '1.0.0',
         description: 'Detects and flags profanity in responses',
-        author: 'CrossAudit Team',
+        author: 'Ausk Team',
         category: 'safety',
         enabled: true,
         priority: 5,

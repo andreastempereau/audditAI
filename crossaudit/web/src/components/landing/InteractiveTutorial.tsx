@@ -116,8 +116,8 @@ Content-Type: application/json
       technical: "Secure response delivery with integrity verification",
       code: `HTTP/1.1 200 OK
 Content-Type: application/json
-X-CrossAudit-Status: MODIFIED
-X-CrossAudit-ID: aud_9m3k7x
+X-Ausk-Status: MODIFIED
+X-Ausk-ID: aud_9m3k7x
 
 {
   "response": "I can't share specific financial data..."

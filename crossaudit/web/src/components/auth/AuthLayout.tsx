@@ -18,7 +18,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
               <Shield className="w-7 h-7 text-white" />
             </div>
             <div className="text-2xl font-bold text-muted-900 dark:text-white">
-              CrossAudit
+              Ausk
             </div>
           </div>
         </div>

@@ -85,11 +85,11 @@ export class WebhookService {
 
       const headers = {
         'Content-Type': 'application/json',
-        'X-CrossAudit-Signature': signature,
-        'X-CrossAudit-Event': event.type,
-        'X-CrossAudit-Delivery': event.id,
-        'X-CrossAudit-Timestamp': event.timestamp.toISOString(),
-        'User-Agent': 'CrossAudit-Webhooks/1.0',
+        'X-Ausk-Signature': signature,
+        'X-Ausk-Event': event.type,
+        'X-Ausk-Delivery': event.id,
+        'X-Ausk-Timestamp': event.timestamp.toISOString(),
+        'User-Agent': 'Ausk-Webhooks/1.0',
         ...endpoint.headers
       };
 

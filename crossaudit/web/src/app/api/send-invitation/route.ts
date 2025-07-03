@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     // Send email using Resend
     const { data, error } = await resend.emails.send({
-      from: 'CrossAudit <noreply@crossaudit.com>', // Replace with your domain
+      from: 'Ausk <noreply@crossaudit.com>', // Replace with your domain
       to: [email],
       subject: `${inviterName} invited you to join ${organizationName}`,
       html: `
@@ -44,11 +44,11 @@ export async function POST(request: NextRequest) {
           
           <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0;">
             <p style="font-size: 18px; margin-bottom: 20px;">
-              <strong>${inviterName}</strong> has invited you to join <strong>${organizationName}</strong> on CrossAudit.
+              <strong>${inviterName}</strong> has invited you to join <strong>${organizationName}</strong> on Ausk.
             </p>
             
             <p style="margin-bottom: 30px;">
-              CrossAudit is a next-generation platform that helps organizations maintain compliance, 
+              Ausk is a next-generation platform that helps organizations maintain compliance, 
               perform security reviews, and streamline their audit processes with AI-powered insights.
             </p>
             
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
             <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
             
             <p style="font-size: 12px; color: #999; text-align: center;">
-              © 2024 CrossAudit. All rights reserved.<br>
+              © 2024 Ausk. All rights reserved.<br>
               This email was sent because ${inviterName} invited you to join their organization.
             </p>
           </div>
@@ -81,16 +81,16 @@ export async function POST(request: NextRequest) {
         </html>
       `,
       text: `
-${inviterName} has invited you to join ${organizationName} on CrossAudit.
+${inviterName} has invited you to join ${organizationName} on Ausk.
 
-CrossAudit is a next-generation audit platform that helps organizations maintain compliance, perform security reviews, and streamline their audit processes with AI-powered insights.
+Ausk is a next-generation audit platform that helps organizations maintain compliance, perform security reviews, and streamline their audit processes with AI-powered insights.
 
 To accept this invitation, visit: ${inviteLink}
 
 This invitation will expire in 7 days. If you don't want to join ${organizationName}, you can safely ignore this email.
 
 ---
-© 2024 CrossAudit. All rights reserved.
+© 2024 Ausk. All rights reserved.
       `.trim(),
     });
 

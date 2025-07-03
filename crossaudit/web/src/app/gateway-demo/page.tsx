@@ -91,7 +91,7 @@ export default function GatewayDemo() {
       <div className="text-center">
         <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
           <Shield className="h-8 w-8 text-blue-600" />
-          CrossAudit AI Governance Gateway Demo
+          Ausk AI Governance Gateway Demo
         </h1>
         <p className="text-gray-600 mt-2">
           Test the AI governance and safety evaluation system

@@ -13,7 +13,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <AuthLayout
       title="Welcome back"
-      subtitle="Sign in to your CrossAudit account"
+      subtitle="Sign in to your Ausk account"
     >
       <LoginForm 
         redirectMessage={redirectMessage}

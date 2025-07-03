@@ -18,7 +18,7 @@ const Header = () => {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-2">
             <Shield className="h-7 w-7 text-gray-900" />
-            <span className="text-xl font-semibold text-gray-900">CrossAudit</span>
+            <span className="text-xl font-semibold text-gray-900">Ausk</span>
           </div>
           
           <nav className="hidden md:flex items-center space-x-8">

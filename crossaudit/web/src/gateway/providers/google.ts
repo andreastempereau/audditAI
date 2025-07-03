@@ -23,7 +23,7 @@ export class GoogleProvider implements LLMProvider {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': 'CrossAudit-AI-Gateway/1.0'
+          'User-Agent': 'Ausk-AI-Gateway/1.0'
         },
         body: JSON.stringify({
           contents: this.convertMessages(request.messages),
@@ -115,7 +115,7 @@ export class GoogleProvider implements LLMProvider {
         `${baseUrl}/models?key=${this.config.apiKey}`,
         {
           headers: {
-            'User-Agent': 'CrossAudit-AI-Gateway/1.0'
+            'User-Agent': 'Ausk-AI-Gateway/1.0'
           }
         }
       );

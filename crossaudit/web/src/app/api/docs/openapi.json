@@ -1,11 +1,11 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "CrossAudit AI Governance Gateway API",
-    "description": "REST API for CrossAudit AI governance, policy enforcement, and audit logging",
+    "title": "Ausk AI Governance Gateway API",
+    "description": "REST API for Ausk AI governance, policy enforcement, and audit logging",
     "version": "1.0.0",
     "contact": {
-      "name": "CrossAudit Support",
+      "name": "Ausk Support",
       "email": "support@crossaudit.ai",
       "url": "https://crossaudit.ai"
     },
@@ -36,7 +36,7 @@
     "/api/gateway/evaluate": {
       "post": {
         "summary": "Evaluate LLM Request",
-        "description": "Send an LLM request through CrossAudit for policy evaluation and enforcement",
+        "description": "Send an LLM request through Ausk for policy evaluation and enforcement",
         "operationId": "evaluateLLMRequest",
         "tags": ["Gateway"],
         "requestBody": {

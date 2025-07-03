@@ -1,4 +1,4 @@
-// Role-Based Access Control (RBAC) System for CrossAudit
+// Role-Based Access Control (RBAC) System for Ausk
 
 export interface Permission {
   id: string;
