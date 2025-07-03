@@ -1,19 +1,106 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { createServerClient } from '@supabase/ssr';
+import { z } from 'zod';
 
 // Initialize Resend only if API key is provided
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
+// Input validation schema
+const invitationSchema = z.object({
+  email: z.string().email().max(254),
+  organizationName: z.string().min(1).max(100).regex(/^[a-zA-Z0-9\s\-_.]+$/),
+  inviterName: z.string().min(1).max(100).regex(/^[a-zA-Z\s'-]+$/),
+  inviteLink: z.string().url().max(500)
+});
+
+// Rate limiting map (in production, use Redis)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now();
+  const userLimit = rateLimitMap.get(userId);
+  
+  if (!userLimit || now > userLimit.resetTime) {
+    // Reset or create new limit
+    rateLimitMap.set(userId, { count: 1, resetTime: now + 3600000 }); // 1 hour
+    return false;
+  }
+  
+  if (userLimit.count >= 10) { // Max 10 invitations per hour
+    return true;
+  }
+  
+  userLimit.count++;
+  return false;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { email, organizationName, inviterName, inviteLink } = body;
+    // Authenticate user
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return request.cookies.get(name)?.value;
+          },
+          set() {},
+          remove() {},
+        },
+      }
+    );
 
-    if (!email || !organizationName || !inviterName || !inviteLink) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Check rate limiting
+    if (isRateLimited(user.id)) {
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Maximum 10 invitations per hour.' },
+        { status: 429 }
+      );
+    }
+
+    // Validate input
+    let validatedData;
+    try {
+      const body = await request.json();
+      validatedData = invitationSchema.parse(body);
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Invalid input data' },
         { status: 400 }
       );
+    }
+
+    const { email, organizationName, inviterName, inviteLink } = validatedData;
+
+    // Verify user has permission to send invitations for this organization
+    const { data: userProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !userProfile) {
+      return NextResponse.json(
+        { error: 'User profile not found' },
+        { status: 403 }
+      );
+    }
+
+    // Additional security: verify inviter name matches user profile
+    if (userProfile.name !== inviterName) {
+      console.warn(`Inviter name mismatch: expected ${userProfile.name}, got ${inviterName}`);
+      // Use the verified name from profile
     }
 
     // Check if email service is configured

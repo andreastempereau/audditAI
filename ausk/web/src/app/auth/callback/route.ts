@@ -1,5 +1,80 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+
+// Input validation schemas
+const userMetadataSchema = z.object({
+  full_name: z.string().max(100).regex(/^[a-zA-Z\s'-]{1,100}$/).optional(),
+  name: z.string().max(100).regex(/^[a-zA-Z\s'-]{1,100}$/).optional(),
+  picture: z.string().url().max(500).optional(),
+  avatar_url: z.string().url().max(500).optional(),
+}).strict()
+
+const emailSchema = z.string().email().max(254)
+
+// Valid redirect paths - only allow internal redirects
+const ALLOWED_REDIRECT_PATHS = [
+  '/dashboard',
+  '/onboarding',
+  '/app',
+  '/profile'
+]
+
+// Validate redirect URL to prevent open redirect attacks
+function validateRedirectUrl(redirectPath: string | null): string {
+  if (!redirectPath || redirectPath === 'null') {
+    return '/dashboard'
+  }
+  
+  try {
+    // Decode the redirect path
+    const decodedPath = decodeURIComponent(redirectPath)
+    
+    // Check if it's a valid internal path
+    const isValidPath = ALLOWED_REDIRECT_PATHS.some(allowedPath => 
+      decodedPath === allowedPath || decodedPath.startsWith(allowedPath + '/')
+    )
+    
+    if (isValidPath) {
+      return decodedPath
+    }
+    
+    console.warn('Invalid redirect path attempted:', decodedPath)
+    return '/dashboard'
+  } catch (error) {
+    console.warn('Failed to decode redirect path:', redirectPath)
+    return '/dashboard'
+  }
+}
+
+// Sanitize string to prevent XSS
+function sanitizeString(str: string | undefined): string | undefined {
+  if (!str) return undefined
+  return str.replace(/[<>'"&]/g, '').trim().substring(0, 100)
+}
+
+// Validate and sanitize user metadata
+function validateUserMetadata(metadata: any): { name?: string; picture_url?: string } {
+  try {
+    const validatedMetadata = userMetadataSchema.parse(metadata || {})
+    
+    const name = sanitizeString(
+      validatedMetadata.full_name || 
+      validatedMetadata.name || 
+      undefined
+    )
+    
+    const picture_url = validatedMetadata.picture || validatedMetadata.avatar_url
+    
+    return {
+      name: name || undefined,
+      picture_url: picture_url || undefined
+    }
+  } catch (error) {
+    console.warn('Invalid user metadata provided, using defaults')
+    return {}
+  }
+}
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
@@ -52,7 +127,6 @@ export async function GET(request: NextRequest) {
 
       if (data.user && data.session) {
         console.log('OAuth login successful for user:', data.user.id)
-        console.log('User metadata:', data.user.user_metadata)
         console.log('Session established:', !!data.session)
         
         // Verify the session is valid
@@ -85,13 +159,30 @@ export async function GET(request: NextRequest) {
         // Ensure profile exists - use UPSERT to handle race conditions
         console.log('Ensuring profile exists for user:', data.user.id)
         
+        // Validate email
+        let validatedEmail: string
+        try {
+          validatedEmail = emailSchema.parse(data.user.email)
+        } catch (error) {
+          console.error('Invalid email from OAuth provider')
+          return NextResponse.redirect(
+            new URL(`/login?error=${encodeURIComponent('Invalid email from OAuth provider')}`, requestUrl.origin)
+          )
+        }
+        
+        // Validate and sanitize user metadata
+        const { name, picture_url } = validateUserMetadata(data.user.user_metadata)
+        
+        // Generate fallback name from email if no valid name provided
+        const safeName = name || sanitizeString(validatedEmail.split('@')[0]) || 'User'
+        
         const { data: profile, error: upsertError } = await supabase
           .from('profiles')
           .upsert({
             id: data.user.id,
-            email: data.user.email,
-            name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || data.user.email?.split('@')[0],
-            picture_url: data.user.user_metadata?.picture || data.user.user_metadata?.avatar_url,
+            email: validatedEmail,
+            name: safeName,
+            picture_url: picture_url,
             first_time: true,
             mfa_enabled: false,
             updated_at: new Date().toISOString()
@@ -151,7 +242,7 @@ export async function GET(request: NextRequest) {
             } else {
               // User has organizations - can access dashboard
               console.log(`User has ${count} organization(s) - allowing dashboard access`);
-              finalRedirect = state && state !== 'null' ? decodeURIComponent(state) : '/dashboard';
+              finalRedirect = validateRedirectUrl(state);
             }
           } catch (orgCheckError) {
             console.error('Exception during organization check:', orgCheckError);
@@ -169,9 +260,20 @@ export async function GET(request: NextRequest) {
         // Create redirect response with all the cookies from the previous response
         const redirectResponse = NextResponse.redirect(new URL(finalRedirect, requestUrl.origin))
         
-        // Copy all cookies from the auth response to the redirect response
+        // Securely copy auth cookies with proper security flags
         response.cookies.getAll().forEach((cookie) => {
-          redirectResponse.cookies.set(cookie.name, cookie.value)
+          // Only copy Supabase auth cookies
+          if (cookie.name.startsWith('sb-') || cookie.name.includes('auth')) {
+            redirectResponse.cookies.set({
+              name: cookie.name,
+              value: cookie.value,
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax',
+              path: '/',
+              maxAge: 60 * 60 * 24 * 7 // 7 days
+            })
+          }
         })
         
         // Add a header to indicate this was an OAuth callback

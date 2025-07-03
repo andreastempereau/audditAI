@@ -62,4 +62,4 @@ package-lock.json
 
 # Temporary folders
 tmp/
-temp/
+temp/.env.local
