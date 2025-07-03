@@ -80,7 +80,8 @@ export function RealTimeDashboard() {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    connectWebSocket();
+    // Disable WebSocket connection to prevent popups
+    // connectWebSocket();
     return () => {
       if (wsRef.current) {
         wsRef.current.close();
