@@ -1,14 +1,5 @@
 {
-  "rootDirectory": "crossaudit/web",
-  "framework": "nextjs",
   "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "installCommand": "npm install",
-  "devCommand": "npm run dev",
-  "functions": {
-    "src/app/api/**/*.ts": {
-      "maxDuration": 60
-    }
-  },
-  "regions": ["iad1"]
+  "outputDirectory": "crossaudit/web/.next",
+  "framework": "nextjs"
 }
