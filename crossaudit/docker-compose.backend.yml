@@ -84,8 +84,12 @@ services:
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: crossaudit_minio
       MINIO_SECRET_KEY: crossaudit_minio_password
-      MINIO_BUCKET: crossaudit-documents
+      MINIO_BUCKET: docs
       MINIO_SECURE: "false"
+      
+      # Data Room
+      DATA_ROOM_ENCRYPTION_KEY: "your-aes-256-encryption-key-change-in-production"
+      STORAGE_BUCKET: "docs"
       
       # App settings
       DEBUG: "true"
@@ -107,10 +111,75 @@ services:
       - crossaudit-network
     restart: unless-stopped
 
+  # Celery Worker for Document Processing
+  worker:
+    build:
+      context: ./backend
+      dockerfile: app/workers/Dockerfile.worker
+    container_name: crossaudit-worker
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://crossaudit_user:crossaudit_password@postgres:5432/crossaudit
+      
+      # Redis
+      REDIS_URL: redis://:crossaudit_redis_password@redis:6379/0
+      
+      # MinIO
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: crossaudit_minio
+      MINIO_SECRET_KEY: crossaudit_minio_password
+      MINIO_BUCKET: docs
+      MINIO_SECURE: "false"
+      
+      # Data Room
+      DATA_ROOM_ENCRYPTION_KEY: "your-aes-256-encryption-key-change-in-production"
+      STORAGE_BUCKET: "docs"
+      
+      # Embedder service
+      EMBEDDER_SERVICE_URL: "embedder:50051"
+      
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      embedder:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+    networks:
+      - crossaudit-network
+    restart: unless-stopped
+
+  # Embedder gRPC Service
+  embedder:
+    build:
+      context: ./backend
+      dockerfile: app/workers/Dockerfile.embedder
+    container_name: crossaudit-embedder
+    ports:
+      - "50051:50051"
+    volumes:
+      - embedder_cache:/root/.cache/huggingface
+    networks:
+      - crossaudit-network
+    restart: unless-stopped
+    # Use GPU if available
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
 volumes:
   postgres_data:
   redis_data:
   minio_data:
+  embedder_cache:
 
 networks:
   crossaudit-network:

@@ -1,0 +1,16 @@
+Welcome to CrossAudit AI!
+
+Hi {{ name }},
+
+Thank you for signing up for CrossAudit AI. To complete your registration and start using our AI governance platform, please verify your email address.
+
+Click here to verify: {{ verification_url }}
+
+This verification link will expire in 24 hours for security reasons.
+
+If you didn't create this account, please ignore this email.
+
+Best regards,
+The CrossAudit AI Team
+
+Need help? Contact us at {{ support_email }}

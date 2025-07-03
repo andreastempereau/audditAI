@@ -1,0 +1,46 @@
+# Dockerfile for embedder gRPC service
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Set work directory
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install ML dependencies
+RUN pip install \
+    sentence-transformers==2.2.2 \
+    torch==2.1.1 \
+    transformers==4.35.2 \
+    grpcio==1.59.3 \
+    grpcio-tools==1.59.3
+
+# Copy application code
+COPY . .
+
+# Create non-root user
+RUN useradd --create-home --shell /bin/bash embedder \
+    && chown -R embedder:embedder /app
+USER embedder
+
+# Expose gRPC port
+EXPOSE 50051
+
+# Pre-download the model
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('intfloat/e5-small-v2')"
+
+# Run embedder service
+CMD ["python", "-m", "app.workers.embedder_service"]

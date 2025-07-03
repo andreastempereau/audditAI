@@ -1,0 +1,56 @@
+// Protocol Buffer definition for embedder service
+syntax = "proto3";
+
+package embedder;
+
+// Health check service
+service HealthService {
+    rpc Check(HealthRequest) returns (HealthResponse);
+}
+
+// Embedder service for generating text embeddings
+service EmbedderService {
+    // Get embedding for single text
+    rpc GetEmbedding(EmbedRequest) returns (EmbedResponse);
+    
+    // Get embeddings for multiple texts (batch)
+    rpc GetEmbeddingsBatch(BatchEmbedRequest) returns (BatchEmbedResponse);
+    
+    // Health check
+    rpc Health(HealthRequest) returns (HealthResponse);
+}
+
+// Health check request
+message HealthRequest {
+    string service = 1;
+}
+
+// Health check response
+message HealthResponse {
+    enum ServingStatus {
+        UNKNOWN = 0;
+        SERVING = 1;
+        NOT_SERVING = 2;
+    }
+    ServingStatus status = 1;
+}
+
+// Single embedding request
+message EmbedRequest {
+    string text = 1;
+}
+
+// Single embedding response
+message EmbedResponse {
+    repeated float embedding = 1;
+}
+
+// Batch embedding request
+message BatchEmbedRequest {
+    repeated string texts = 1;
+}
+
+// Batch embedding response
+message BatchEmbedResponse {
+    repeated EmbedResponse embeddings = 1;
+}

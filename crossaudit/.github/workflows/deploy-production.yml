@@ -1,0 +1,410 @@
+name: Production Deployment (Blue-Green)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy'
+        required: true
+        default: 'latest'
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  validate-deployment:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    outputs:
+      current-color: ${{ steps.current-deployment.outputs.color }}
+      target-color: ${{ steps.target-deployment.outputs.color }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Determine current deployment color
+      id: current-deployment
+      run: |
+        # Check which color is currently active by looking at ALB target groups
+        BLUE_HEALTHY=$(aws elbv2 describe-target-health \
+          --target-group-arn $(aws elbv2 describe-target-groups \
+            --names crossaudit-${{ inputs.environment }}-blue-tg \
+            --query 'TargetGroups[0].TargetGroupArn' --output text) \
+          --query 'TargetHealthDescriptions[?TargetHealth.State==`healthy`] | length(@)' --output text)
+        
+        GREEN_HEALTHY=$(aws elbv2 describe-target-health \
+          --target-group-arn $(aws elbv2 describe-target-groups \
+            --names crossaudit-${{ inputs.environment }}-green-tg \
+            --query 'TargetGroups[0].TargetGroupArn' --output text) \
+          --query 'TargetHealthDescriptions[?TargetHealth.State==`healthy`] | length(@)' --output text)
+        
+        if [ "$BLUE_HEALTHY" -gt 0 ]; then
+          echo "color=blue" >> $GITHUB_OUTPUT
+          echo "Current active deployment: BLUE"
+        elif [ "$GREEN_HEALTHY" -gt 0 ]; then
+          echo "color=green" >> $GITHUB_OUTPUT
+          echo "Current active deployment: GREEN"
+        else
+          echo "color=blue" >> $GITHUB_OUTPUT
+          echo "No healthy deployment found, defaulting to BLUE"
+        fi
+
+    - name: Determine target deployment color
+      id: target-deployment
+      run: |
+        if [ "${{ steps.current-deployment.outputs.color }}" = "blue" ]; then
+          echo "color=green" >> $GITHUB_OUTPUT
+          echo "Target deployment color: GREEN"
+        else
+          echo "color=blue" >> $GITHUB_OUTPUT
+          echo "Target deployment color: BLUE"
+        fi
+
+    - name: Validate image exists
+      run: |
+        # Verify the specified image tag exists in the registry
+        docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
+
+  deploy-target-environment:
+    needs: validate-deployment
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.0
+
+    - name: Deploy to target environment
+      run: |
+        cd backend/infra
+        terraform init
+        terraform workspace select ${{ inputs.environment }}
+        
+        # Deploy to the target color (opposite of current)
+        terraform plan \
+          -var="environment=${{ inputs.environment }}" \
+          -var="image_tag=${{ inputs.image_tag }}" \
+          -var="deployment_color=${{ needs.validate-deployment.outputs.target-color }}" \
+          -var="blue_green_deployment=true" \
+          -out=tfplan
+        
+        terraform apply tfplan
+
+    - name: Update target ECS service
+      run: |
+        TARGET_COLOR=${{ needs.validate-deployment.outputs.target-color }}
+        
+        # Update the ECS service for the target color
+        aws ecs update-service \
+          --cluster crossaudit-${{ inputs.environment }} \
+          --service crossaudit-${{ inputs.environment }}-api-${TARGET_COLOR} \
+          --task-definition crossaudit-${{ inputs.environment }}-api-${TARGET_COLOR}:$(aws ecs describe-task-definition \
+            --task-definition crossaudit-${{ inputs.environment }}-api-${TARGET_COLOR} \
+            --query 'taskDefinition.revision' --output text) \
+          --force-new-deployment
+
+    - name: Wait for target deployment to be stable
+      run: |
+        TARGET_COLOR=${{ needs.validate-deployment.outputs.target-color }}
+        
+        echo "Waiting for ${TARGET_COLOR} deployment to become stable..."
+        aws ecs wait services-stable \
+          --cluster crossaudit-${{ inputs.environment }} \
+          --services crossaudit-${{ inputs.environment }}-api-${TARGET_COLOR}
+
+  health-check:
+    needs: [validate-deployment, deploy-target-environment]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Get target environment endpoint
+      id: get-endpoint
+      run: |
+        TARGET_COLOR=${{ needs.validate-deployment.outputs.target-color }}
+        
+        # Get the load balancer DNS for the target color
+        ALB_DNS=$(aws elbv2 describe-load-balancers \
+          --names crossaudit-${{ inputs.environment }}-alb-${TARGET_COLOR} \
+          --query 'LoadBalancers[0].DNSName' --output text)
+        
+        echo "endpoint=https://${ALB_DNS}" >> $GITHUB_OUTPUT
+
+    - name: Run comprehensive health checks
+      run: |
+        TARGET_ENDPOINT="${{ steps.get-endpoint.outputs.endpoint }}"
+        
+        echo "Running health checks against: ${TARGET_ENDPOINT}"
+        
+        # Basic health check
+        for i in {1..30}; do
+          if curl -f -s "${TARGET_ENDPOINT}/health" > /dev/null; then
+            echo "✅ Health check passed (attempt $i)"
+            break
+          else
+            echo "❌ Health check failed (attempt $i/30)"
+            if [ $i -eq 30 ]; then
+              echo "Health checks failed after 30 attempts"
+              exit 1
+            fi
+            sleep 10
+          fi
+        done
+        
+        # API functionality tests
+        echo "Testing API endpoints..."
+        
+        # Test authentication endpoint
+        AUTH_RESPONSE=$(curl -s -w "%{http_code}" "${TARGET_ENDPOINT}/api/auth/health")
+        if [[ "${AUTH_RESPONSE: -3}" != "200" ]]; then
+          echo "❌ Auth endpoint failed"
+          exit 1
+        fi
+        echo "✅ Auth endpoint healthy"
+        
+        # Test metrics endpoint
+        METRICS_RESPONSE=$(curl -s -w "%{http_code}" "${TARGET_ENDPOINT}/api/metrics/health")
+        if [[ "${METRICS_RESPONSE: -3}" != "200" ]]; then
+          echo "❌ Metrics endpoint failed"
+          exit 1
+        fi
+        echo "✅ Metrics endpoint healthy"
+        
+        # Test database connectivity
+        DB_RESPONSE=$(curl -s -w "%{http_code}" "${TARGET_ENDPOINT}/api/health/db")
+        if [[ "${DB_RESPONSE: -3}" != "200" ]]; then
+          echo "❌ Database connectivity failed"
+          exit 1
+        fi
+        echo "✅ Database connectivity healthy"
+        
+        # Test Redis connectivity
+        REDIS_RESPONSE=$(curl -s -w "%{http_code}" "${TARGET_ENDPOINT}/api/health/redis")
+        if [[ "${REDIS_RESPONSE: -3}" != "200" ]]; then
+          echo "❌ Redis connectivity failed"
+          exit 1
+        fi
+        echo "✅ Redis connectivity healthy"
+
+    - name: Run load test
+      run: |
+        TARGET_ENDPOINT="${{ steps.get-endpoint.outputs.endpoint }}"
+        
+        echo "Running basic load test..."
+        
+        # Install Apache Bench if not available
+        sudo apt-get update && sudo apt-get install -y apache2-utils
+        
+        # Run load test: 100 requests, 10 concurrent
+        ab -n 100 -c 10 "${TARGET_ENDPOINT}/health" > load_test_results.txt
+        
+        # Check if error rate is acceptable (< 5%)
+        ERRORS=$(grep "Failed requests:" load_test_results.txt | awk '{print $3}')
+        if [ "${ERRORS:-0}" -gt 5 ]; then
+          echo "❌ Load test failed: ${ERRORS} errors out of 100 requests"
+          cat load_test_results.txt
+          exit 1
+        fi
+        
+        echo "✅ Load test passed: ${ERRORS} errors out of 100 requests"
+
+  switch-traffic:
+    needs: [validate-deployment, deploy-target-environment, health-check]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Switch ALB traffic to target environment
+      run: |
+        TARGET_COLOR=${{ needs.validate-deployment.outputs.target-color }}
+        CURRENT_COLOR=${{ needs.validate-deployment.outputs.current-color }}
+        
+        echo "Switching traffic from ${CURRENT_COLOR} to ${TARGET_COLOR}"
+        
+        # Get target group ARNs
+        TARGET_TG_ARN=$(aws elbv2 describe-target-groups \
+          --names crossaudit-${{ inputs.environment }}-${TARGET_COLOR}-tg \
+          --query 'TargetGroups[0].TargetGroupArn' --output text)
+        
+        # Get ALB listener ARN
+        ALB_ARN=$(aws elbv2 describe-load-balancers \
+          --names crossaudit-${{ inputs.environment }}-alb \
+          --query 'LoadBalancers[0].LoadBalancerArn' --output text)
+        
+        LISTENER_ARN=$(aws elbv2 describe-listeners \
+          --load-balancer-arn ${ALB_ARN} \
+          --query 'Listeners[0].ListenerArn' --output text)
+        
+        # Switch traffic to target color
+        aws elbv2 modify-listener \
+          --listener-arn ${LISTENER_ARN} \
+          --default-actions Type=forward,TargetGroupArn=${TARGET_TG_ARN}
+        
+        echo "✅ Traffic switched to ${TARGET_COLOR} environment"
+
+    - name: Monitor traffic switch
+      run: |
+        TARGET_COLOR=${{ needs.validate-deployment.outputs.target-color }}
+        
+        echo "Monitoring traffic switch for 5 minutes..."
+        
+        # Monitor for 5 minutes to ensure stability
+        for i in {1..30}; do
+          # Check target group health
+          HEALTHY_TARGETS=$(aws elbv2 describe-target-health \
+            --target-group-arn $(aws elbv2 describe-target-groups \
+              --names crossaudit-${{ inputs.environment }}-${TARGET_COLOR}-tg \
+              --query 'TargetGroups[0].TargetGroupArn' --output text) \
+            --query 'TargetHealthDescriptions[?TargetHealth.State==`healthy`] | length(@)' --output text)
+          
+          if [ "${HEALTHY_TARGETS}" -eq 0 ]; then
+            echo "❌ No healthy targets in ${TARGET_COLOR} environment!"
+            exit 1
+          fi
+          
+          echo "✅ ${HEALTHY_TARGETS} healthy targets in ${TARGET_COLOR} environment (check $i/30)"
+          sleep 10
+        done
+        
+        echo "✅ Traffic switch monitoring completed successfully"
+
+  cleanup-old-environment:
+    needs: [validate-deployment, deploy-target-environment, health-check, switch-traffic]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    if: success()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Scale down old environment
+      run: |
+        CURRENT_COLOR=${{ needs.validate-deployment.outputs.current-color }}
+        
+        echo "Scaling down old ${CURRENT_COLOR} environment..."
+        
+        # Scale down the old environment to 0 instances
+        aws ecs update-service \
+          --cluster crossaudit-${{ inputs.environment }} \
+          --service crossaudit-${{ inputs.environment }}-api-${CURRENT_COLOR} \
+          --desired-count 0
+        
+        echo "✅ Scaled down ${CURRENT_COLOR} environment"
+
+    - name: Tag successful deployment
+      run: |
+        TARGET_COLOR=${{ needs.validate-deployment.outputs.target-color }}
+        
+        # Tag the successful deployment
+        git tag "deploy-${{ inputs.environment }}-$(date +%Y%m%d-%H%M%S)"
+        
+        echo "✅ Deployment completed successfully"
+        echo "Active environment: ${TARGET_COLOR}"
+        echo "Image tag: ${{ inputs.image_tag }}"
+        echo "Environment: ${{ inputs.environment }}"
+
+  rollback:
+    needs: [validate-deployment, deploy-target-environment, health-check, switch-traffic]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    if: failure()
+    
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Rollback to previous environment
+      run: |
+        CURRENT_COLOR=${{ needs.validate-deployment.outputs.current-color }}
+        TARGET_COLOR=${{ needs.validate-deployment.outputs.target-color }}
+        
+        echo "🔄 Rolling back to ${CURRENT_COLOR} environment due to deployment failure"
+        
+        # Get current environment target group ARN
+        CURRENT_TG_ARN=$(aws elbv2 describe-target-groups \
+          --names crossaudit-${{ inputs.environment }}-${CURRENT_COLOR}-tg \
+          --query 'TargetGroups[0].TargetGroupArn' --output text)
+        
+        # Get ALB listener ARN
+        ALB_ARN=$(aws elbv2 describe-load-balancers \
+          --names crossaudit-${{ inputs.environment }}-alb \
+          --query 'LoadBalancers[0].LoadBalancerArn' --output text)
+        
+        LISTENER_ARN=$(aws elbv2 describe-listeners \
+          --load-balancer-arn ${ALB_ARN} \
+          --query 'Listeners[0].ListenerArn' --output text)
+        
+        # Switch traffic back to current (stable) environment
+        aws elbv2 modify-listener \
+          --listener-arn ${LISTENER_ARN} \
+          --default-actions Type=forward,TargetGroupArn=${CURRENT_TG_ARN}
+        
+        # Scale down failed deployment
+        aws ecs update-service \
+          --cluster crossaudit-${{ inputs.environment }} \
+          --service crossaudit-${{ inputs.environment }}-api-${TARGET_COLOR} \
+          --desired-count 0
+        
+        echo "✅ Rollback completed. Traffic restored to ${CURRENT_COLOR} environment"

@@ -16,6 +16,7 @@ from app.schemas.documents import (
     FileUploadResponse
 )
 from app.services.documents import DocumentService
+from app.services.data_room import DataRoomService
 
 router = APIRouter()
 security = HTTPBearer()
@@ -138,10 +139,13 @@ async def update_document(
 async def upload_file(
     document_id: UUID,
     file: UploadFile = File(...),
+    title: str = "Uploaded Document",
+    description: str = None,
+    classification_level: str = "restricted",
     session: Annotated[AsyncSession, Depends(get_async_session)] = Depends(get_async_session),
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)] = Depends(security)
 ) -> BaseResponse[FileUploadResponse]:
-    """Upload file for document."""
+    """Upload file for existing document (new version)."""
     current_user = await get_current_user(credentials, session)
     if not current_user:
         raise HTTPException(
@@ -149,16 +153,52 @@ async def upload_file(
             detail="Invalid authentication credentials"
         )
     
-    # Validate file size (max 100MB)
-    max_size = 100 * 1024 * 1024  # 100MB
-    if file.size and file.size > max_size:
+    # Get organization from token (simplified for now)
+    org_id = UUID("00000000-0000-0000-0000-000000000000")  # TODO: Get from JWT
+    
+    data_room_service = DataRoomService(session)
+    result = await data_room_service.upload_file(
+        file=file,
+        document_id=document_id,
+        title=title,
+        description=description,
+        classification_level=classification_level,
+        user_id=current_user.id,
+        organization_id=org_id
+    )
+    return BaseResponse(data=result)
+
+
+@router.post("/upload", response_model=BaseResponse[FileUploadResponse])
+async def upload_new_file(
+    file: UploadFile = File(...),
+    title: str = "New Document",
+    description: str = None,
+    classification_level: str = "restricted",
+    session: Annotated[AsyncSession, Depends(get_async_session)] = Depends(get_async_session),
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)] = Depends(security)
+) -> BaseResponse[FileUploadResponse]:
+    """Upload new file (creates new document)."""
+    current_user = await get_current_user(credentials, session)
+    if not current_user:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File too large. Maximum size is 100MB"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials"
         )
     
-    doc_service = DocumentService(session)
-    result = await doc_service.upload_file(document_id, file, current_user.id)
+    # Get organization from token (simplified for now)
+    org_id = UUID("00000000-0000-0000-0000-000000000000")  # TODO: Get from JWT
+    
+    data_room_service = DataRoomService(session)
+    result = await data_room_service.upload_file(
+        file=file,
+        document_id=None,  # Creates new document
+        title=title,
+        description=description,
+        classification_level=classification_level,
+        user_id=current_user.id,
+        organization_id=org_id
+    )
     return BaseResponse(data=result)
 
 
@@ -189,7 +229,7 @@ async def search_fragments(
     session: Annotated[AsyncSession, Depends(get_async_session)],
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
 ) -> BaseResponse[List[FragmentSearchResult]]:
-    """Search document fragments."""
+    """Search document fragments using semantic similarity."""
     current_user = await get_current_user(credentials, session)
     if not current_user:
         raise HTTPException(
@@ -200,6 +240,53 @@ async def search_fragments(
     # Get organization from token (simplified for now)
     org_id = UUID("00000000-0000-0000-0000-000000000000")  # TODO: Get from JWT
     
-    doc_service = DocumentService(session)
-    results = await doc_service.search_fragments(search_request, org_id)
+    data_room_service = DataRoomService(session)
+    results = await data_room_service.search_fragments(
+        query_text=search_request.query,
+        organization_id=org_id,
+        user_id=current_user.id,
+        document_id=getattr(search_request, 'document_id', None),
+        classification_level=getattr(search_request, 'classification_level', None),
+        limit=search_request.limit
+    )
     return BaseResponse(data=results)
+
+
+@router.delete("/{document_id}")
+async def delete_document(
+    document_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
+) -> BaseResponse[dict]:
+    """Delete document (soft delete)."""
+    current_user = await get_current_user(credentials, session)
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials"
+        )
+    
+    data_room_service = DataRoomService(session)
+    await data_room_service.delete_document(document_id, current_user.id)
+    return BaseResponse(data={"message": "Document deleted successfully"})
+
+
+@router.get("/usage")
+async def get_data_room_usage(
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
+) -> BaseResponse[dict]:
+    """Get data room usage statistics for organization."""
+    current_user = await get_current_user(credentials, session)
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials"
+        )
+    
+    # Get organization from token (simplified for now)
+    org_id = UUID("00000000-0000-0000-0000-000000000000")  # TODO: Get from JWT
+    
+    data_room_service = DataRoomService(session)
+    usage = await data_room_service.get_organization_usage(org_id)
+    return BaseResponse(data=usage)

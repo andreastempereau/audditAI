@@ -1,0 +1,46 @@
+# Dockerfile for Celery worker
+FROM python:3.11-slim
+
+# Install system dependencies for text extraction
+RUN apt-get update && apt-get install -y \
+    default-jre \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Apache Tika
+RUN curl -L https://downloads.apache.org/tika/2.9.1/tika-server-standard-2.9.1.jar \
+    -o /opt/tika-server.jar
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV TIKA_SERVER_JAR=/opt/tika-server.jar
+
+# Set work directory
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install additional worker dependencies
+RUN pip install \
+    tika==2.6.0 \
+    python-docx==0.8.11 \
+    python-pptx==0.6.21 \
+    pandas==2.1.3 \
+    celery==5.3.4
+
+# Copy application code
+COPY . .
+
+# Create non-root user
+RUN useradd --create-home --shell /bin/bash worker \
+    && chown -R worker:worker /app
+USER worker
+
+# Start Tika server in background and run worker
+CMD ["sh", "-c", "java -jar /opt/tika-server.jar --host=0.0.0.0 --port=9998 & python -m app.workers.worker"]

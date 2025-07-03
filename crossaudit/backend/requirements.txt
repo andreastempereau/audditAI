@@ -33,3 +33,39 @@ mypy==1.7.1
 
 # Additional utilities
 python-dotenv==1.0.0
+
+# Email & Templates
+Jinja2==3.1.2
+aiosmtplib==3.0.1
+
+# Task Queue
+celery==5.3.4
+
+# MFA & QR Codes
+pyotp==2.9.0
+qrcode[pil]==7.4.2
+
+# HTTP Client
+aiohttp==3.9.1
+
+# Stripe Billing
+stripe==7.7.0
+
+# YAML Processing
+PyYAML==6.0.1
+
+# Data Room Dependencies
+cryptography==41.0.7
+tika==2.6.0
+python-docx==0.8.11
+python-pptx==0.6.21
+
+# ML Dependencies (for embedder service)
+sentence-transformers==2.2.2
+torch==2.1.1
+transformers==4.35.2
+grpcio==1.59.3
+grpcio-tools==1.59.3
+
+# Vector database
+pgvector==0.2.4

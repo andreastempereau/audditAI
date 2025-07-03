@@ -61,12 +61,15 @@ class Settings(BaseSettings):
     supabase_key: str = Field(default="", alias="SUPABASE_SERVICE_KEY")
     supabase_bucket: str = Field(default="documents", alias="SUPABASE_BUCKET")
     
-    # Email (for password reset)
-    smtp_host: str = Field(default="localhost", alias="SMTP_HOST")
+    # Email Configuration
+    smtp_server: str = Field(default="localhost", alias="SMTP_SERVER")
     smtp_port: int = Field(default=587, alias="SMTP_PORT")
     smtp_username: str = Field(default="", alias="SMTP_USERNAME")
     smtp_password: str = Field(default="", alias="SMTP_PASSWORD")
     smtp_use_tls: bool = Field(default=True, alias="SMTP_USE_TLS")
+    from_email: str = Field(default="noreply@crossaudit.ai", alias="FROM_EMAIL")
+    from_name: str = Field(default="CrossAudit AI", alias="FROM_NAME")
+    frontend_url: str = Field(default="http://localhost:3000", alias="FRONTEND_URL")
     
     # Security
     allowed_origins: List[str] = Field(
@@ -88,10 +91,24 @@ class Settings(BaseSettings):
     
     # AI/ML Services
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
+    anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
+    google_ai_api_key: str = Field(default="", alias="GOOGLE_AI_API_KEY")
     embedding_model: str = Field(default="text-embedding-ada-002", alias="EMBEDDING_MODEL")
+    
+    # Encryption
+    encryption_key: str = Field(default="change-me-32-character-key", alias="ENCRYPTION_KEY")
+    
+    # Billing/Stripe Configuration
+    stripe_starter_price_id: str = Field(default="", alias="STRIPE_STARTER_PRICE_ID")
+    stripe_business_price_id: str = Field(default="", alias="STRIPE_BUSINESS_PRICE_ID")
+    stripe_enterprise_price_id: str = Field(default="", alias="STRIPE_ENTERPRISE_PRICE_ID")
     
     # Rate limiting
     rate_limit_per_minute: int = Field(default=60, alias="RATE_LIMIT_PER_MINUTE")
+    
+    # Celery Configuration
+    celery_broker_url: str = Field(default="redis://localhost:6379/1", alias="CELERY_BROKER_URL")
+    celery_result_backend: str = Field(default="redis://localhost:6379/1", alias="CELERY_RESULT_BACKEND")
     
     def get_database_url(self) -> str:
         """Get the database URL for SQLModel."""

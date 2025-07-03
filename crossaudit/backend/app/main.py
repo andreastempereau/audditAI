@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from app.core.config import get_settings
 from app.core.database import init_db
+from app.core.error_handlers import register_error_handlers
 from app.core.middleware import (
     AuditLoggingMiddleware,
     MetricsMiddleware,
@@ -27,10 +28,17 @@ from app.routes import auth
 from app.routes import organizations
 from app.routes import chat
 from app.routes import documents
+from app.routes import fragments
 from app.routes import rbac
 from app.routes import audit
 from app.routes import metrics
 from app.routes import admin
+from app.routes import health
+from app.routes import websocket
+from app.routes import policies
+from app.routes import evaluators
+from app.routes import governance
+from app.routes import billing
 
 # Configure logging
 logging.basicConfig(
@@ -97,15 +105,25 @@ app.add_middleware(TimingMiddleware)
 app.add_middleware(MetricsMiddleware)
 app.add_middleware(AuditLoggingMiddleware)
 
+# Register error handlers
+register_error_handlers(app)
+
 # Include routers
+app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(organizations.router, prefix="/api/organizations", tags=["Organizations"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
+app.include_router(fragments.router, prefix="/api/fragments", tags=["Fragments"])
 app.include_router(rbac.router, prefix="/api/rbac", tags=["RBAC"])
 app.include_router(audit.router, prefix="/api/audit", tags=["Audit"])
 app.include_router(metrics.router, prefix="/api/metrics", tags=["Metrics"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(policies.router, prefix="/api/policies", tags=["Policies"])
+app.include_router(evaluators.router, prefix="/api/evaluators", tags=["Evaluators"])
+app.include_router(governance.router, prefix="/api/governance", tags=["Governance"])
+app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
+app.include_router(websocket.router, tags=["WebSocket"])
 
 
 @app.get("/")

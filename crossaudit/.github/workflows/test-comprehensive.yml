@@ -1,0 +1,518 @@
+name: Comprehensive Test Suite
+
+on:
+  schedule:
+    # Run comprehensive tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of tests to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - unit
+        - integration
+        - e2e
+        - governance
+        - billing
+        - analytics
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  unit-tests:
+    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'unit' }}
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crossaudit_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run unit tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/crossaudit_test
+        REDIS_URL: redis://localhost:6379
+        JWT_SECRET_KEY: test-secret-key-for-ci
+        ENCRYPTION_KEY: test-encryption-key-32-chars-long
+      run: |
+        cd backend
+        pytest -m "unit" --cov-report=xml --cov-report=html -v
+
+    - name: Upload unit test coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./backend/coverage.xml
+        flags: unit-tests
+
+  integration-tests:
+    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'integration' }}
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crossaudit_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run database migrations
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/crossaudit_test
+      run: |
+        cd backend
+        # Run migrations if you have them
+        # alembic upgrade head
+
+    - name: Run integration tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/crossaudit_test
+        REDIS_URL: redis://localhost:6379
+        JWT_SECRET_KEY: test-secret-key-for-ci
+        ENCRYPTION_KEY: test-encryption-key-32-chars-long
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST }}
+      run: |
+        cd backend
+        pytest -m "integration" --cov-report=xml -v
+
+    - name: Upload integration test coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./backend/coverage.xml
+        flags: integration-tests
+
+  governance-tests:
+    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'governance' }}
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crossaudit_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run governance tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/crossaudit_test
+        REDIS_URL: redis://localhost:6379
+        JWT_SECRET_KEY: test-secret-key-for-ci
+        ENCRYPTION_KEY: test-encryption-key-32-chars-long
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_TEST }}
+      run: |
+        cd backend
+        pytest -m "governance" -v --tb=long
+
+  billing-tests:
+    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'billing' }}
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crossaudit_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run billing tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/crossaudit_test
+        JWT_SECRET_KEY: test-secret-key-for-ci
+        ENCRYPTION_KEY: test-encryption-key-32-chars-long
+        STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY_TEST }}
+        STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET_TEST }}
+      run: |
+        cd backend
+        pytest -m "billing" -v --tb=long
+
+  analytics-tests:
+    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'analytics' }}
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crossaudit_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run analytics tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/crossaudit_test
+        REDIS_URL: redis://localhost:6379
+        JWT_SECRET_KEY: test-secret-key-for-ci
+        ENCRYPTION_KEY: test-encryption-key-32-chars-long
+      run: |
+        cd backend
+        pytest -m "analytics" -v --tb=long
+
+  e2e-tests:
+    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'e2e' }}
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crossaudit_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
+
+    - name: Install backend dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Install frontend dependencies
+      run: |
+        cd web
+        npm ci
+
+    - name: Start backend server
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/crossaudit_test
+        REDIS_URL: redis://localhost:6379
+        JWT_SECRET_KEY: test-secret-key-for-ci
+        ENCRYPTION_KEY: test-encryption-key-32-chars-long
+      run: |
+        cd backend
+        python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        sleep 10
+      
+    - name: Start frontend server
+      run: |
+        cd web
+        npm run dev &
+        sleep 10
+
+    - name: Run E2E tests
+      run: |
+        cd backend
+        pytest -m "e2e" -v --tb=long
+
+    - name: Upload E2E test artifacts
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: e2e-test-artifacts
+        path: |
+          backend/test-results/
+          backend/screenshots/
+
+  performance-tests:
+    if: ${{ github.event.inputs.test_type == 'all' }}
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crossaudit_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Start backend server
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/crossaudit_test
+        REDIS_URL: redis://localhost:6379
+        JWT_SECRET_KEY: test-secret-key-for-ci
+        ENCRYPTION_KEY: test-encryption-key-32-chars-long
+      run: |
+        cd backend
+        python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        sleep 10
+
+    - name: Run load tests
+      run: |
+        cd backend
+        locust --headless --users 10 --spawn-rate 2 --run-time 60s --host http://localhost:8000
+
+    - name: Upload performance test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-test-results
+        path: backend/locust-report.html
+
+  security-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run security scans
+      run: |
+        cd backend
+        bandit -r app/ -f json -o bandit-report.json
+        safety check --json --output safety-report.json
+
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-scan-results
+        path: |
+          backend/bandit-report.json
+          backend/safety-report.json
+
+  test-summary:
+    needs: [unit-tests, integration-tests, governance-tests, billing-tests, analytics-tests, e2e-tests, performance-tests, security-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Generate test summary
+      run: |
+        echo "# Test Suite Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Test Type | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Unit Tests | ${{ needs.unit-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Integration Tests | ${{ needs.integration-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Governance Tests | ${{ needs.governance-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Billing Tests | ${{ needs.billing-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Analytics Tests | ${{ needs.analytics-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| E2E Tests | ${{ needs.e2e-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Performance Tests | ${{ needs.performance-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Security Tests | ${{ needs.security-tests.result }} |" >> $GITHUB_STEP_SUMMARY

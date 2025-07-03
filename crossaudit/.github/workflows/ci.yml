@@ -1,41 +1,252 @@
-name: ci
-on: [push, pull_request]
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
-  rust:
+  lint-and-test:
     runs-on: ubuntu-latest
+    
     services:
       postgres:
-        image: postgres:16
+        image: postgres:15
         env:
-          POSTGRES_PASSWORD: secret
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crossaudit_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
         ports:
-          - "5432:5432"
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
-      - run: sudo apt-get update && sudo apt-get install -y libpq-dev
-      - run: psql ${{env.DATABASE_URL}} -f sql/0001_init.sql && psql ${{env.DATABASE_URL}} -f sql/0002_dataroom.sql
-      - run: cargo test --workspace
-      - run: cargo test --workspace --no-default-features
-  web:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run linting
+      run: |
+        cd backend
+        ruff check .
+        black --check .
+        mypy .
+
+    - name: Run security checks
+      run: |
+        cd backend
+        bandit -r app/
+        safety check
+
+    - name: Run tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/crossaudit_test
+        REDIS_URL: redis://localhost:6379
+        JWT_SECRET_KEY: test-secret-key-for-ci
+        ENCRYPTION_KEY: test-encryption-key-32-chars-long
+      run: |
+        cd backend
+        pytest --cov=app --cov-report=xml --cov-report=html -v
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./backend/coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  frontend-test:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-      - run: pnpm --prefix web install
-      - run: pnpm --prefix web build
-  cypress:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
+
+    - name: Install frontend dependencies
+      run: |
+        cd web
+        npm ci
+
+    - name: Run frontend linting
+      run: |
+        cd web
+        npm run lint
+        npm run type-check
+
+    - name: Run frontend tests
+      run: |
+        cd web
+        npm run test:coverage
+
+    - name: Build frontend
+      run: |
+        cd web
+        npm run build
+
+  security-scan:
     runs-on: ubuntu-latest
-    needs: [web]
+    
     steps:
-      - uses: cypress-io/github-action@v5
-        with:
-          start: pnpm --prefix web dev
-          wait-on: http://localhost:3000
-  docker-sign:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  build-and-push:
+    needs: [lint-and-test, frontend-test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
+    - name: Generate SBOM
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        format: spdx-json
+        output-file: sbom.spdx.json
+
+    - name: Upload SBOM
+      uses: actions/upload-artifact@v3
+      with:
+        name: sbom
+        path: sbom.spdx.json
+
+  deploy-staging:
+    needs: build-and-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    environment: staging
+    
     steps:
-      - uses: actions/checkout@v4
-      - run: docker build -f docker/Dockerfile.gateway -t ghcr.io/example/crossaudit-gateway:${{github.sha}} .
-      - run: cosign sign --key env://COSIGN_KEY ghcr.io/example/crossaudit-gateway:${{github.sha}}
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.0
+
+    - name: Deploy to staging
+      run: |
+        cd backend/infra
+        terraform init
+        terraform workspace select staging || terraform workspace new staging
+        terraform plan -var="environment=staging" -var="image_tag=${{ github.sha }}" -out=tfplan
+        terraform apply tfplan
+
+    - name: Update ECS service
+      run: |
+        aws ecs update-service \
+          --cluster crossaudit-staging \
+          --service crossaudit-staging-api \
+          --force-new-deployment
+
+    - name: Wait for deployment
+      run: |
+        aws ecs wait services-stable \
+          --cluster crossaudit-staging \
+          --services crossaudit-staging-api
+
+    - name: Run smoke tests
+      run: |
+        cd backend
+        python scripts/smoke_tests.py --environment staging
