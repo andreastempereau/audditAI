@@ -182,10 +182,10 @@ export default function Page() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
 
-  // Redirect authenticated users to app
+  // Redirect authenticated users to dashboard
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.push('/app');
+      router.push('/dashboard');
     }
   }, [isAuthenticated, isLoading, router]);
 

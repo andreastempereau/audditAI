@@ -102,38 +102,11 @@ export default function OnboardingPage() {
     );
   }
 
-  // If authenticated but no user profile, show a helpful message
+  // If authenticated but no user profile, show onboarding wizard
   if (isAuthenticated && !user && !isLoading) {
-    console.log('User authenticated but no profile - proceeding with onboarding');
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-center max-w-md px-6">
-          <div className="text-blue-500">
-            <svg className="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900">Setting Up Your Profile</h3>
-          <p className="text-sm text-muted-600">
-            You're authenticated but your profile is still being created. This is normal for new accounts.
-          </p>
-          <div className="flex gap-3">
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors"
-            >
-              Refresh Page
-            </button>
-            <button
-              onClick={() => router.push('/login')}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Back to Login
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    console.log('User authenticated but no profile - showing onboarding wizard');
+    // This is normal for OAuth users - their profile might still be loading
+    // Show the onboarding wizard anyway since they have a valid session
   }
 
   const handleOnboardingComplete = async () => {
@@ -141,19 +114,31 @@ export default function OnboardingPage() {
       // Mark user as no longer first-time
       await updateProfile({ first_time: false });
       
-      // Redirect to main app
-      router.push('/app');
+      // Redirect to dashboard
+      router.push('/dashboard');
     } catch (error) {
       console.error('Error completing onboarding:', error);
-      // Still redirect to app even if profile update fails
-      router.push('/app');
+      // Still redirect to dashboard even if profile update fails
+      router.push('/dashboard');
     }
   };
 
+  // Show onboarding wizard if authenticated (with or without user profile)
+  if (isAuthenticated) {
+    return (
+      <OnboardingWizard
+        isOpen={true}
+        onComplete={handleOnboardingComplete}
+      />
+    );
+  }
+
+  // If not authenticated and not loading, should have been redirected already
   return (
-    <OnboardingWizard
-      isOpen={true}
-      onComplete={handleOnboardingComplete}
-    />
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <p className="text-sm text-muted-600">Redirecting to login...</p>
+      </div>
+    </div>
   );
 }

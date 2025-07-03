@@ -85,78 +85,51 @@ export async function GET(request: NextRequest) {
         // Check if user profile exists (database trigger should have created it)
         let { data: profile, error: profileSelectError } = await supabase
           .from('profiles')
-          .select('*') // Select all fields to debug
+          .select('first_time')
           .eq('id', data.user.id)
           .single()
 
         console.log('Profile lookup result:', { profile, profileSelectError })
 
-        // If profile doesn't exist, create it manually
+        // If profile doesn't exist, wait a moment and try again (database trigger might be running)
         if (!profile && profileSelectError?.code === 'PGRST116') {
-          console.log('Profile not found, creating manually...')
+          console.log('Profile not found, waiting for database trigger to complete...')
+          await new Promise(resolve => setTimeout(resolve, 1000))
           
-          const { data: newProfile, error: insertError } = await supabase
+          const { data: retryProfile, error: retryError } = await supabase
             .from('profiles')
-            .insert({
-              id: data.user.id,
-              name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || data.user.email?.split('@')[0],
-              email: data.user.email,
-              picture_url: data.user.user_metadata?.picture || data.user.user_metadata?.avatar_url,
-              first_time: true,
-              mfa_enabled: false
-            })
-            .select()
+            .select('first_time')
+            .eq('id', data.user.id)
             .single()
           
-          if (insertError) {
-            console.error('Error creating profile:', insertError)
-            // Still continue - user can still use the app
+          if (retryProfile) {
+            console.log('Profile found on retry:', retryProfile)
+            profile = retryProfile
           } else {
-            console.log('Profile created successfully:', newProfile)
-            profile = newProfile
+            console.error('Profile still not found after retry:', retryError)
+            // Continue anyway - the client-side auth provider will handle this
           }
         } else if (profile) {
           console.log('Existing profile found:', profile)
         }
 
-        // Determine redirect: onboarding if no user OR user has no organizations
-        let finalRedirect = '/onboarding'; // Default to onboarding for safety
+        // Check if user has any organizations
+        const { data: userOrgs } = await supabase
+          .from('user_organizations')
+          .select('id')
+          .eq('user_id', data.user.id)
+          .limit(1);
+
+        // Determine redirect URL based on user state
+        let finalRedirect = '/app';
         
-        if (!profile) {
-          // No profile found - need onboarding
-          console.log('No profile found - redirecting to onboarding');
+        // If user has first_time flag or no organizations, redirect to onboarding
+        if (profile?.first_time || !userOrgs || userOrgs.length === 0) {
+          console.log('User needs onboarding - first_time:', profile?.first_time, 'orgs:', userOrgs?.length);
           finalRedirect = '/onboarding';
-        } else {
-          // Profile exists - check if they have organizations
-          try {
-            // Use a simple count query to avoid RLS join issues
-            const { count, error: orgsError } = await supabase
-              .from('user_organizations')
-              .select('*', { count: 'exact', head: true })
-              .eq('user_id', data.user.id);
-            
-            console.log('User organizations count:', { count, orgsError });
-            
-            if (orgsError) {
-              console.error('Error checking organization count:', orgsError);
-              // If we can't check organizations, send to onboarding for safety
-              console.log('Cannot verify organizations - redirecting to onboarding');
-              finalRedirect = '/onboarding';
-            } else if (count === 0) {
-              // No organizations - need onboarding
-              console.log('User has no organizations - redirecting to onboarding');
-              finalRedirect = '/onboarding';
-            } else {
-              // User has organizations - can access dashboard
-              console.log(`User has ${count} organization(s) - allowing dashboard access`);
-              finalRedirect = state && state !== 'null' ? decodeURIComponent(state) : '/dashboard';
-            }
-          } catch (orgCheckError) {
-            console.error('Exception during organization check:', orgCheckError);
-            // On any error, send to onboarding to be safe
-            console.log('Organization check failed - redirecting to onboarding');
-            finalRedirect = '/onboarding';
-          }
+        } else if (state && state !== 'null') {
+          // Use the state parameter if provided and valid
+          finalRedirect = decodeURIComponent(state);
         }
         
         console.log('Redirecting to:', finalRedirect);
@@ -176,14 +149,14 @@ export async function GET(request: NextRequest) {
           new URL(`/login?error=${encodeURIComponent('No session established')}`, requestUrl.origin)
         )
       }
-    } catch (err) {
-      console.error('OAuth callback error:', err)
+    } catch (error) {
+      console.error('Unexpected error in OAuth callback:', error)
       return NextResponse.redirect(
-        new URL(`/login?error=${encodeURIComponent('An unexpected error occurred')}`, requestUrl.origin)
+        new URL(`/login?error=${encodeURIComponent('Authentication failed')}`, requestUrl.origin)
       )
     }
   }
 
-  // If no code, redirect to login
+  // No code parameter, redirect to login
   return NextResponse.redirect(new URL('/login', requestUrl.origin))
 }

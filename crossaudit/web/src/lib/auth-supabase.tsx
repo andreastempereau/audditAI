@@ -71,89 +71,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setState(prev => ({ ...prev, isLoading }));
   }, []);
 
-  // Fetch user profile and organizations
+  // Fetch user profile (simplified to avoid RLS issues)
   const fetchUserProfile = useCallback(async (supabaseUser: SupabaseUser): Promise<User | null> => {
     console.log('fetchUserProfile called for user:', supabaseUser.id);
     
     try {
-      // Get user profile
-      let { data: profile, error: profileError } = await supabase
+      // Get user profile with a timeout
+      const profilePromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', supabaseUser.id)
         .single();
 
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Profile query timeout')), 5000);
+      });
+
+      const { data: profile, error: profileError } = await Promise.race([
+        profilePromise,
+        timeoutPromise
+      ]);
+
       console.log('Profile lookup result:', { profile, profileError });
 
-      if (profileError) {
-        console.error('Error fetching profile:', profileError);
-        // For OAuth users, the database trigger should have created the profile
-        if (profileError.code === 'PGRST116') { // Row not found
-          console.log('Profile not found, waiting for database trigger...');
-          
-          // Try multiple times with increasing delays
-          let retryCount = 0;
-          const maxRetries = 3;
-          
-          while (retryCount < maxRetries) {
-            const waitTime = Math.min(1000 * (retryCount + 1), 3000); // 1s, 2s, 3s max
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-            
-            const { data: retryProfile, error: retryError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', supabaseUser.id)
-              .single();
-            
-            if (retryProfile) {
-              console.log(`Profile found on retry ${retryCount + 1}:`, retryProfile);
-              profile = retryProfile;
-              break;
-            }
-            
-            retryCount++;
-            console.log(`Profile not found on retry ${retryCount}/${maxRetries}`);
-          }
-          
-          if (!profile) {
-            console.error('Profile still not found after all retries');
-            return null;
-          }
-        } else {
-          console.error('Profile error that is not row not found:', profileError);
-          return null;
-        }
+      if (profileError || !profile) {
+        console.error('Error fetching profile or profile not found:', profileError);
+        return null;
       }
 
-      // Get user organizations (use left join to allow users without orgs)
-      const { data: userOrgs, error: orgsError } = await supabase
-        .from('user_organizations')
-        .select(`
-          role,
-          organizations(
-            id,
-            name,
-            tier
-          )
-        `)
-        .eq('user_id', supabaseUser.id);
-
-      console.log('Organizations lookup result:', { userOrgs, orgsError });
-
-      if (orgsError) {
-        console.error('Error fetching organizations:', orgsError);
-        // Continue without organizations - OAuth users might not have orgs initially
-      }
-
-      const organizations: UserOrganization[] = (userOrgs || [])
-        .filter((item: any) => item.organizations) // Filter out null organizations
-        .map((item: any) => ({
-          id: item.organizations.id,
-          name: item.organizations.name,
-          role: item.role as 'owner' | 'admin' | 'member',
-          tier: item.organizations.tier as 'free' | 'pro' | 'enterprise',
-        }));
-
+      // Return user profile without organizations (loaded separately)
       const userProfile = {
         id: supabaseUser.id,
         email: supabaseUser.email || '',
@@ -162,7 +108,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         mfaEnabled: profile.mfa_enabled || false,
         firstTime: profile.first_time || false,
         createdAt: profile.created_at,
-        organizations,
+        organizations: [], // Always empty to avoid RLS issues
       };
 
       console.log('Returning user profile:', userProfile);
@@ -178,30 +124,49 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       if (session?.user) {
         console.log('Setting user and session for:', session.user.id);
-        const userProfile = await fetchUserProfile(session.user);
-        console.log('Fetched user profile:', userProfile);
         
-        if (userProfile) {
-          setState(prev => ({
-            ...prev,
-            user: userProfile,
-            session,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null,
-          }));
-          console.log('Auth state updated - authenticated with profile');
-        } else {
-          // User has session but no profile - still consider them authenticated
-          // This handles cases where profile creation failed but OAuth succeeded
-          console.log('User has session but no profile - considering authenticated');
+        // Set a timeout to prevent infinite loading
+        const profilePromise = fetchUserProfile(session.user);
+        const timeoutPromise = new Promise<null>((_, reject) => {
+          setTimeout(() => reject(new Error('Profile fetch timeout')), 10000);
+        });
+        
+        try {
+          const userProfile = await Promise.race([profilePromise, timeoutPromise]);
+          console.log('Fetched user profile:', userProfile);
+          
+          if (userProfile) {
+            setState(prev => ({
+              ...prev,
+              user: userProfile,
+              session,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+            }));
+            console.log('Auth state updated - authenticated with profile');
+          } else {
+            // User has session but no profile - still consider them authenticated
+            console.log('User has session but no profile - considering authenticated');
+            setState(prev => ({
+              ...prev,
+              user: null,
+              session,
+              isAuthenticated: true, // They have a valid session
+              isLoading: false,
+              error: 'Profile not found - please complete setup',
+            }));
+          }
+        } catch (profileError) {
+          console.error('Profile fetch failed or timed out:', profileError);
+          // Still mark as authenticated since they have a valid session
           setState(prev => ({
             ...prev,
             user: null,
             session,
-            isAuthenticated: true, // They have a valid session
+            isAuthenticated: true,
             isLoading: false,
-            error: 'Profile not found - please complete setup',
+            error: 'Profile loading failed - please refresh',
           }));
         }
       } else {
@@ -220,7 +185,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: 'Failed to load user profile',
+        error: 'Failed to initialize authentication',
       }));
     }
   }, [fetchUserProfile]);
