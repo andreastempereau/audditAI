@@ -261,7 +261,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Check if this is an OAuth callback by looking at URL or checking if user has OAuth provider
           const isOAuthCallback = typeof window !== 'undefined' && 
             (window.location.search.includes('code=') || 
-             session?.user?.app_metadata?.provider);
+             !!session?.user?.app_metadata?.provider);
           await setUserAndSession(session, isOAuthCallback);
         }
       } catch (error) {
@@ -284,8 +284,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           // Check if this is an OAuth sign-in
           const isOAuthCallback = event === 'SIGNED_IN' && 
-            (typeof window !== 'undefined' && window.location.search.includes('code=')) ||
-            session?.user?.app_metadata?.provider;
+            ((typeof window !== 'undefined' && window.location.search.includes('code=')) ||
+             !!session?.user?.app_metadata?.provider);
           await setUserAndSession(session, isOAuthCallback);
         } else if (event === 'SIGNED_OUT') {
           setState(prev => ({

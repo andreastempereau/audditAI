@@ -45,7 +45,7 @@ interface OnboardingWizardProps {
   user?: any; // Optional user prop for better handling
 }
 
-export function OnboardingWizard({ isOpen, onComplete, user }: OnboardingWizardProps) {
+export function OnboardingWizard({ isOpen, onComplete, user: propUser }: OnboardingWizardProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
