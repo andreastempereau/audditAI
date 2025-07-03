@@ -27,7 +27,8 @@ const queryClient = new QueryClient({
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [msg, setMsg] = useState('');
-  useAlerts(setMsg);
+  // Temporarily disable alerts to prevent heartbeat popups
+  // useAlerts(setMsg);
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
