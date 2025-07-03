@@ -1,5 +1,6 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "crossaudit/web/.next",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "installCommand": "cd crossaudit/web && npm install",
+  "buildCommand": "cd crossaudit/web && npm run build",
+  "outputDirectory": "crossaudit/web/.next"
 }
