@@ -163,8 +163,8 @@ export function InviteContainer({ orgId, email }: InviteContainerProps) {
         // Don't throw error here as the main action succeeded
       }
 
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Redirect to app
+      router.push('/app');
     } catch (error) {
       console.error('Error accepting invitation:', error);
       setError(error instanceof Error ? error.message : 'Failed to accept invitation.');
@@ -350,7 +350,7 @@ export function InviteContainer({ orgId, email }: InviteContainerProps) {
           </Button>
           
           <Button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/app')}
             variant="ghost"
             className="w-full"
             disabled={isAccepting}

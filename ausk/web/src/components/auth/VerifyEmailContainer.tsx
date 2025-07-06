@@ -20,7 +20,7 @@ export function VerifyEmailContainer({ email }: VerifyEmailContainerProps) {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/dashboard');
+      router.push('/app');
     }
   }, [isAuthenticated, router]);
 
@@ -104,7 +104,7 @@ export function VerifyEmailContainer({ email }: VerifyEmailContainerProps) {
       } else {
         // Regular OTP verification (not signup)
         console.log('OTP verification successful');
-        router.push('/dashboard');
+        router.push('/app');
       }
     } catch (error) {
       console.error('OTP verification exception:', error);

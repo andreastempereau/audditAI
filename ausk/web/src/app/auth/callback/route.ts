@@ -14,16 +14,15 @@ const emailSchema = z.string().email().max(254)
 
 // Valid redirect paths - only allow internal redirects
 const ALLOWED_REDIRECT_PATHS = [
-  '/dashboard',
-  '/onboarding',
   '/app',
+  '/onboarding',
   '/profile'
 ]
 
 // Validate redirect URL to prevent open redirect attacks
 function validateRedirectUrl(redirectPath: string | null): string {
   if (!redirectPath || redirectPath === 'null') {
-    return '/dashboard'
+    return '/app'
   }
   
   try {
@@ -40,10 +39,10 @@ function validateRedirectUrl(redirectPath: string | null): string {
     }
     
     console.warn('Invalid redirect path attempted:', decodedPath)
-    return '/dashboard'
+    return '/app'
   } catch (error) {
     console.warn('Failed to decode redirect path:', redirectPath)
-    return '/dashboard'
+    return '/app'
   }
 }
 

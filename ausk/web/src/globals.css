@@ -4,121 +4,139 @@
 
 @layer base {
   :root {
+    /* Background and foreground */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
+    
+    /* Card */
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    
+    /* Primary */
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    
+    /* Secondary */
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    
+    /* Muted */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    
+    /* Accent */
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    
+    /* Destructive */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    
+    /* Border, input, ring */
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
+    
+    /* Chart colors */
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    
+    /* Radius */
+    --radius: 0.5rem;
   }
 
   .dark {
+    /* Background and foreground */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
+    
+    /* Card */
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    
+    /* Popover */
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    
+    /* Primary */
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    
+    /* Secondary */
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    
+    /* Muted */
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    
+    /* Accent */
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    
+    /* Destructive */
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    
+    /* Border, input, ring */
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 67.3%;
+    --ring: 224.3 76.3% 48%;
+    
+    /* Chart colors */
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
   }
   
   * {
-    @apply border-muted-200;
+    @apply border-border;
   }
   
   body {
-    @apply bg-white text-muted-900 antialiased dark:bg-muted-900 dark:text-white;
+    @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  }
-  
-  html {
-    scroll-behavior: smooth;
-  }
-
-  /* Focus styles */
-  *:focus-visible {
-    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-white dark:ring-offset-muted-900;
-  }
-
-  /* Remove default button styles */
-  button {
-    @apply focus-visible:outline-none;
   }
 }
 
-@layer components {
-  /* Typography scale */
-  .text-display-2xl {
-    @apply text-3xl font-bold leading-tight tracking-tight;
+@layer utilities {
+  /* Additional utility classes for consistent styling */
+  .animate-in {
+    animation: animateIn 0.2s ease-out;
   }
   
-  .text-display-xl {
-    @apply text-2xl font-bold leading-tight tracking-tight;
+  .animate-out {
+    animation: animateOut 0.2s ease-in;
   }
   
-  .text-display-lg {
-    @apply text-xl font-semibold leading-tight;
+  @keyframes animateIn {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
   
-  .text-display-md {
-    @apply text-lg font-semibold leading-tight;
-  }
-  
-  .text-display-sm {
-    @apply text-base font-semibold leading-tight;
-  }
-
-  /* Button variants */
-  .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors;
-    @apply bg-primary text-white hover:bg-primary/90 active:bg-primary/80;
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
-    @apply disabled:pointer-events-none disabled:opacity-50;
-  }
-  
-  .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors;
-    @apply bg-muted-100 text-muted-900 hover:bg-muted-200 active:bg-muted-300;
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-muted-500 focus-visible:ring-offset-2;
-    @apply disabled:pointer-events-none disabled:opacity-50;
-  }
-  
-  .btn-ghost {
-    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors;
-    @apply text-muted-700 hover:bg-muted-100 active:bg-muted-200;
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-muted-500 focus-visible:ring-offset-2;
-    @apply disabled:pointer-events-none disabled:opacity-50;
-  }
-
-  /* Card styles */
-  .card {
-    @apply rounded-xl border border-muted-200 bg-white shadow-sm;
-  }
-  
-  .card-hover {
-    @apply card transition-shadow hover:shadow-md;
-  }
-
-  /* Input styles */
-  .input {
-    @apply w-full rounded-lg border border-muted-300 bg-white px-3 py-2 text-sm;
-    @apply placeholder:text-muted-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary;
-    @apply disabled:bg-muted-50 disabled:text-muted-500 disabled:cursor-not-allowed;
-  }
-
-  /* Dark mode overrides */
-  .dark .card {
-    @apply border-muted-800 bg-muted-900;
-  }
-  
-  .dark .input {
-    @apply border-muted-700 bg-muted-800 text-white placeholder:text-muted-400;
-    @apply focus:border-primary;
-  }
-  
-  .dark .btn-secondary {
-    @apply bg-muted-800 text-muted-100 hover:bg-muted-700 active:bg-muted-600;
-  }
-  
-  .dark .btn-ghost {
-    @apply text-muted-300 hover:bg-muted-800 active:bg-muted-700;
+  @keyframes animateOut {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(4px);
+    }
   }
 }

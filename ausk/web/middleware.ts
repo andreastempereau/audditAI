@@ -65,7 +65,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Define protected routes
-  const protectedRoutes = ['/app', '/onboarding', '/dashboard']
+  const protectedRoutes = ['/app', '/onboarding']
   const authRoutes = ['/login', '/register', '/verify-email', '/forgot-password']
   
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
@@ -78,12 +78,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If user is authenticated and trying to access auth routes, redirect to dashboard
+  // If user is authenticated and trying to access auth routes, redirect to app
   if (isAuthRoute && session) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return NextResponse.redirect(new URL('/app', request.url))
   }
 
-  // If user is authenticated and on landing page, redirect to dashboard (unless they need onboarding)
+  // If user is authenticated and on landing page, redirect to app (unless they need onboarding)
   if (session && pathname === '/') {
     try {
       const { data: profile } = await supabase
@@ -95,7 +95,7 @@ export async function middleware(request: NextRequest) {
       if (profile?.first_time) {
         return NextResponse.redirect(new URL('/onboarding', request.url))
       } else {
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+        return NextResponse.redirect(new URL('/app', request.url))
       }
     } catch (error) {
       console.error('Error checking user profile for root redirect:', error)
@@ -104,8 +104,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Check if user needs onboarding (for both /app and /dashboard routes)
-  if (session && (pathname.startsWith('/app') || pathname.startsWith('/dashboard')) && pathname !== '/onboarding') {
+  // Check if user needs onboarding (for /app routes)
+  if (session && pathname.startsWith('/app') && pathname !== '/onboarding') {
     try {
       const { data: profile } = await supabase
         .from('profiles')

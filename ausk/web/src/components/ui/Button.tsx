@@ -3,13 +3,13 @@ import { Slot } from '@radix-ui/react-slot';
 import { cn } from '@/lib/utils';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: 'default' | 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
+  size?: 'sm' | 'md' | 'lg' | 'icon';
   asChild?: boolean;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', asChild = false, ...props }, ref) => {
+  ({ className, variant = 'default', size = 'md', asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
     
     return (
@@ -20,17 +20,18 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           'disabled:pointer-events-none disabled:opacity-50',
           // Variants
           {
-            'bg-primary text-white hover:bg-primary/90 active:bg-primary/80 focus-visible:ring-primary': variant === 'primary',
-            'bg-muted-100 text-muted-900 hover:bg-muted-200 active:bg-muted-300 focus-visible:ring-muted-500': variant === 'secondary',
-            'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100 focus-visible:ring-gray-500': variant === 'outline',
-            'text-muted-700 hover:bg-muted-100 active:bg-muted-200 focus-visible:ring-muted-500': variant === 'ghost',
-            'bg-error-500 text-white hover:bg-error-600 active:bg-error-700 focus-visible:ring-error-500': variant === 'destructive',
+            'bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring': variant === 'default' || variant === 'primary',
+            'bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-ring': variant === 'secondary',
+            'border border-input bg-background hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring': variant === 'outline',
+            'hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring': variant === 'ghost',
+            'bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-ring': variant === 'destructive',
           },
           // Sizes
           {
             'h-8 px-3 text-sm': size === 'sm',
             'h-10 px-4 text-sm': size === 'md',
             'h-12 px-6 text-base': size === 'lg',
+            'h-10 w-10': size === 'icon',
           },
           className
         )}

@@ -131,12 +131,12 @@ export default function OnboardingPage() {
         await updateProfile({ first_time: false });
       }
       
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Redirect to app
+      router.push('/app');
     } catch (error) {
       console.error('Error completing onboarding:', error);
-      // Still redirect to dashboard even if profile update fails
-      router.push('/dashboard');
+      // Still redirect to app even if profile update fails
+      router.push('/app');
     }
   };
 
