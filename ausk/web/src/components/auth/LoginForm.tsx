@@ -92,10 +92,10 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
     <div className="space-y-6">
       {/* Redirect message */}
       {redirectMessage && (
-        <div className="rounded-lg bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800 p-3">
+        <div className="rounded-lg bg-warning-50 border border-warning-200 p-3">
           <div className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-warning-600" />
-            <p className="text-sm text-warning-700 dark:text-warning-300">
+            <p className="text-sm text-warning-700">
               {redirectMessage}
             </p>
           </div>
@@ -119,10 +119,10 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
       {/* Divider */}
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-muted-300 dark:border-muted-700" />
+          <div className="w-full border-t border-border" />
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-white dark:bg-muted-900 text-muted-500">
+          <span className="px-2 bg-card text-muted-foreground">
             Or continue with email
           </span>
         </div>
@@ -132,7 +132,7 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Email */}
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-muted-700 dark:text-muted-300 mb-2">
+          <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
             Email address
           </label>
           <Input
@@ -141,17 +141,17 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
             type="email"
             autoComplete="email"
             placeholder="Enter your email"
-            className={cn(errors.email && 'border-error-500 focus:border-error-500 focus:ring-error-500')}
+            className={cn(errors.email && 'border-destructive focus:border-destructive focus:ring-destructive')}
             disabled={isLoading}
           />
           {errors.email && (
-            <p className="mt-1 text-sm text-error-600">{errors.email.message}</p>
+            <p className="mt-1 text-sm text-destructive">{errors.email.message}</p>
           )}
         </div>
 
         {/* Password */}
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-muted-700 dark:text-muted-300 mb-2">
+          <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
             Password
           </label>
           <div className="relative">
@@ -163,7 +163,7 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
               placeholder="Enter your password"
               className={cn(
                 'pr-10',
-                errors.password && 'border-error-500 focus:border-error-500 focus:ring-error-500'
+                errors.password && 'border-destructive focus:border-destructive focus:ring-destructive'
               )}
               disabled={isLoading}
             />
@@ -173,14 +173,14 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
               onClick={() => setShowPassword(!showPassword)}
             >
               {showPassword ? (
-                <EyeOff className="h-4 w-4 text-muted-400" />
+                <EyeOff className="h-4 w-4 text-muted-foreground" />
               ) : (
-                <Eye className="h-4 w-4 text-muted-400" />
+                <Eye className="h-4 w-4 text-muted-foreground" />
               )}
             </button>
           </div>
           {errors.password && (
-            <p className="mt-1 text-sm text-error-600">{errors.password.message}</p>
+            <p className="mt-1 text-sm text-destructive">{errors.password.message}</p>
           )}
         </div>
 
@@ -191,9 +191,9 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
               {...register('rememberMe')}
               id="remember-me"
               type="checkbox"
-              className="h-4 w-4 text-primary focus:ring-primary border-muted-300 rounded"
+              className="h-4 w-4 text-primary focus:ring-primary border-input rounded"
             />
-            <label htmlFor="remember-me" className="ml-2 block text-sm text-muted-700 dark:text-muted-300">
+            <label htmlFor="remember-me" className="ml-2 block text-sm text-foreground">
               Remember me
             </label>
           </div>
@@ -210,8 +210,8 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
 
         {/* Auth Error */}
         {error && (
-          <div className="rounded-lg bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 p-3">
-            <p className="text-sm text-error-700 dark:text-error-300">{error}</p>
+          <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+            <p className="text-sm text-destructive">{error}</p>
           </div>
         )}
 
@@ -226,7 +226,7 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
       </form>
 
       {/* Sign up link */}
-      <p className="text-center text-sm text-muted-600 dark:text-muted-400">
+      <p className="text-center text-sm text-muted-foreground">
         Don't have an account?{' '}
         <a
           href="/register"

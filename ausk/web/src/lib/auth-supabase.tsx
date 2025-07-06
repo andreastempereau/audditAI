@@ -358,28 +358,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Log authentication event
       if (data.user) {
-        await supabase.rpc('log_auth_event', {
-          p_user_id: data.user.id,
-          p_action: 'login_success',
-          p_metadata: { remember_me: rememberMe },
-        });
+        try {
+          await supabase.rpc('log_auth_event', {
+            p_user_id: data.user.id,
+            p_action: 'login_success',
+            p_metadata: { remember_me: rememberMe },
+          });
+        } catch (logError) {
+          console.error('Error logging auth event:', logError);
+          // Continue anyway
+        }
       }
 
       // Session will be handled by onAuthStateChange
+      setState(prev => ({ ...prev, isLoading: false }));
     } catch (error) {
       const message = error instanceof AuthError ? error.message : 'Sign in failed';
       setError(message);
       
       // Log failed login attempt
-      await supabase.rpc('log_auth_event', {
-        p_user_id: null,
-        p_action: 'login_failure',
-        p_metadata: { email, error: message },
-      });
+      try {
+        await supabase.rpc('log_auth_event', {
+          p_user_id: null,
+          p_action: 'login_failure',
+          p_metadata: { email, error: message },
+        });
+      } catch (logError) {
+        console.error('Error logging auth event:', logError);
+        // Continue anyway
+      }
       
+      setState(prev => ({ ...prev, isLoading: false }));
       throw error;
     }
-  }, [supabase.auth, supabase, setLoading, clearError, setError]);
+  }, [supabase.auth, supabase, setLoading, clearError, setError, setState]);
 
   // Sign in with OAuth
   const signInWithOAuth = useCallback(async (provider: 'google' | 'github' | 'azure') => {
