@@ -46,9 +46,11 @@ export default function OnboardingPage() {
   // Redirect if not authenticated (but be more lenient for OAuth flows)
   useEffect(() => {
     const isOAuthFlow = typeof window !== 'undefined' && window.location.search.includes('code=');
+    const isDirectOnboardingAccess = typeof window !== 'undefined' && 
+      window.location.pathname === '/onboarding' && !window.location.search.includes('code=');
     
-    // Don't redirect immediately for OAuth flows
-    if (!isLoading && !isAuthenticated && !isOAuthFlow) {
+    // Don't redirect immediately for OAuth flows or if coming from auth callback
+    if (!isLoading && !isAuthenticated && !isOAuthFlow && isDirectOnboardingAccess) {
       console.log('User not authenticated, redirecting to login');
       router.push('/login');
     }

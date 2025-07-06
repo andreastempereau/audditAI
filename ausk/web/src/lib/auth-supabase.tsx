@@ -312,21 +312,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
     clearError();
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
+      // Store signup data in session storage temporarily
+      sessionStorage.setItem('pendingSignup', JSON.stringify({ email, password, name }));
+      
+      // Send OTP to verify email first
+      console.log('Sending OTP for email verification');
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: email,
         options: {
+          shouldCreateUser: false,
           data: {
-            name,
-          },
-        },
+            signup_intent: true,
+            name: name
+          }
+        }
       });
 
-      if (error) {
-        throw error;
+      if (otpError) {
+        throw otpError;
       }
 
-      // Note: User will need to verify email before they can sign in
+      // OTP sent successfully
       setState(prev => ({ ...prev, isLoading: false }));
     } catch (error) {
       const message = error instanceof AuthError ? error.message : 'Sign up failed';

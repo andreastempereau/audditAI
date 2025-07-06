@@ -59,8 +59,13 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  // Skip middleware for auth callback to prevent redirect loops
+  if (pathname.startsWith('/auth/callback')) {
+    return response
+  }
+
   // Define protected routes
-  const protectedRoutes = ['/app', '/onboarding']
+  const protectedRoutes = ['/app', '/onboarding', '/dashboard']
   const authRoutes = ['/login', '/register', '/verify-email', '/forgot-password']
   
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
@@ -73,13 +78,34 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If user is authenticated and trying to access auth routes, redirect to app
+  // If user is authenticated and trying to access auth routes, redirect to dashboard
   if (isAuthRoute && session) {
-    return NextResponse.redirect(new URL('/app', request.url))
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // Check if user needs onboarding
-  if (session && pathname.startsWith('/app') && pathname !== '/onboarding') {
+  // If user is authenticated and on landing page, redirect to dashboard (unless they need onboarding)
+  if (session && pathname === '/') {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('first_time')
+        .eq('id', session.user.id)
+        .single()
+
+      if (profile?.first_time) {
+        return NextResponse.redirect(new URL('/onboarding', request.url))
+      } else {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+    } catch (error) {
+      console.error('Error checking user profile for root redirect:', error)
+      // Default to onboarding for safety
+      return NextResponse.redirect(new URL('/onboarding', request.url))
+    }
+  }
+
+  // Check if user needs onboarding (for both /app and /dashboard routes)
+  if (session && (pathname.startsWith('/app') || pathname.startsWith('/dashboard')) && pathname !== '/onboarding') {
     try {
       const { data: profile } = await supabase
         .from('profiles')

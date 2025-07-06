@@ -101,14 +101,14 @@ export default function RegisterPage() {
     return (
       <AuthLayout
         title="Check your email"
-        subtitle="We've sent you a verification link"
+        subtitle="We've sent you a verification code"
       >
         <div className="text-center space-y-4">
           <div className="w-16 h-16 mx-auto bg-success-100 dark:bg-success-900/20 rounded-full flex items-center justify-center">
             <Check className="w-8 h-8 text-success-600" />
           </div>
           <p className="text-muted-600 dark:text-muted-400">
-            Please check your email and click the verification link to complete your registration.
+            Please check your email and enter the 6-digit verification code to complete your registration.
           </p>
           <Button
             onClick={() => router.push('/login')}

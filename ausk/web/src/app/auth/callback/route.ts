@@ -82,6 +82,8 @@ export async function GET(request: NextRequest) {
   const state = requestUrl.searchParams.get('state')
   const error = requestUrl.searchParams.get('error')
   const error_description = requestUrl.searchParams.get('error_description')
+  const token_hash = requestUrl.searchParams.get('token_hash')
+  const type = requestUrl.searchParams.get('type')
 
   if (error) {
     console.error('OAuth error:', error, error_description)
@@ -89,6 +91,9 @@ export async function GET(request: NextRequest) {
       new URL(`/login?error=${encodeURIComponent(error_description || error)}`, requestUrl.origin)
     )
   }
+
+  // Handle email verification - but codes are entered in the verify page, not callback
+  // Remove this block since we're using code-based verification
 
   if (code) {
     // Create a new NextResponse that we'll modify and return
@@ -126,8 +131,17 @@ export async function GET(request: NextRequest) {
       }
 
       if (data.user && data.session) {
-        console.log('OAuth login successful for user:', data.user.id)
+        console.log('Auth successful for user:', data.user.id)
         console.log('Session established:', !!data.session)
+        console.log('Email confirmed:', data.user.email_confirmed_at ? 'Yes' : 'No')
+
+        // For regular signup (not OAuth), check if email verification is required
+        if (!data.user.email_confirmed_at && !data.user.app_metadata?.provider) {
+          console.log('Email not verified for regular signup, redirecting to verification page')
+          return NextResponse.redirect(
+            new URL(`/verify-email?email=${encodeURIComponent(data.user.email || '')}`, requestUrl.origin)
+          )
+        }
         
         // Verify the session is valid
         const { data: { user: sessionUser }, error: sessionError } = await supabase.auth.getUser()
@@ -220,7 +234,19 @@ export async function GET(request: NextRequest) {
           console.log('No profile found - redirecting to onboarding');
           finalRedirect = '/onboarding';
         } else {
-          // Profile exists - check if they have organizations
+          // Profile exists - for now, always send new OAuth users to onboarding
+          // This ensures they can create their organization
+          if (profile.first_time) {
+            console.log('New user (first_time=true) - redirecting to onboarding');
+            finalRedirect = '/onboarding';
+          } else {
+            // Existing user - allow dashboard access
+            console.log('Existing user (first_time=false) - allowing dashboard access');
+            finalRedirect = validateRedirectUrl(state);
+          }
+          
+          // Optional: Check organizations (commented out since table may not exist yet)
+          /*
           try {
             // Use a simple count query to avoid RLS join issues
             const { count, error: orgsError } = await supabase
@@ -250,6 +276,7 @@ export async function GET(request: NextRequest) {
             console.log('Organization check failed - redirecting to onboarding');
             finalRedirect = '/onboarding';
           }
+          */
         }
         
         console.log('OAuth callback complete - redirecting to:', finalRedirect);
