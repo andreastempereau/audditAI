@@ -30,6 +30,9 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
   const router = useRouter();
   const { signIn, signInWithOAuth, isAuthenticated, error, clearError } = useAuth();
 
+  // Debug: log the loading state
+  console.log('LoginForm isLoading:', isLoading);
+
   const {
     register,
     handleSubmit,
@@ -56,13 +59,19 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
   }, [clearError]);
 
   const onSubmit = async (data: LoginFormData) => {
+    console.log('=== LOGIN FORM onSubmit START ===');
+    console.log('onSubmit: Current isLoading state:', isLoading);
+    console.log('onSubmit: Setting isLoading to true');
     setIsLoading(true);
     clearError();
 
     try {
+      console.log('onSubmit: About to call signIn with:', { email: data.email, rememberMe: data.rememberMe });
       await signIn(data.email, data.password, data.rememberMe);
+      console.log('onSubmit: signIn completed successfully, await finished');
       // Redirect will happen automatically via useEffect
     } catch (error) {
+      console.log('onSubmit: signIn failed with error:', error);
       if (error instanceof Error) {
         if (error.message.includes('Invalid login credentials')) {
           setError('email', { message: 'Invalid email or password' });
@@ -74,7 +83,9 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
         }
       }
     } finally {
+      console.log('onSubmit: FINALLY BLOCK REACHED - Setting isLoading to false');
       setIsLoading(false);
+      console.log('=== LOGIN FORM onSubmit END ===');
     }
   };
 

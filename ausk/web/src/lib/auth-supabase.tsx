@@ -91,10 +91,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('Profile lookup result:', { profile, profileError });
 
       if (profileError || !profile) {
-        // If profile not found, retry with exponential backoff
-        if (profileError?.code === 'PGRST116' && retryCount < 5) {
-          const delay = Math.min(1000 * Math.pow(2, retryCount), 8000); // Max 8 seconds
-          console.log(`Profile not found, retrying in ${delay}ms...`);
+        // For OAuth users, retry with exponential backoff since profile creation might be in progress
+        // For regular email/password logins, only retry once quickly since profile should exist
+        const maxRetries = isOAuthCallback ? 5 : 1;
+        const baseDelay = isOAuthCallback ? 1000 : 500;
+        
+        if (profileError?.code === 'PGRST116' && retryCount < maxRetries) {
+          const delay = isOAuthCallback ? 
+            Math.min(baseDelay * Math.pow(2, retryCount), 8000) : // OAuth: exponential backoff up to 8s
+            baseDelay; // Email/password: quick 500ms retry only
+          console.log(`Profile not found, retrying in ${delay}ms... (attempt ${retryCount + 1}/${maxRetries}, isOAuth: ${isOAuthCallback})`);
           await new Promise(resolve => setTimeout(resolve, delay));
           return fetchUserProfile(supabaseUser, retryCount + 1, isOAuthCallback);
         }
@@ -343,55 +349,48 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Sign in with email and password
   const signIn = useCallback(async (email: string, password: string, rememberMe = false) => {
+    console.log('=== AUTH CONTEXT signIn START ===');
+    console.log('signIn called with:', { email, rememberMe });
+    console.log('Current auth state before signIn:', { isLoading: state.isLoading, isAuthenticated: state.isAuthenticated });
     setLoading(true);
     clearError();
 
     try {
+      console.log('About to call supabase.auth.signInWithPassword...');
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      console.log('signInWithPassword completed with result:', { 
+        hasUser: !!data.user, 
+        userId: data.user?.id,
+        hasSession: !!data.session,
+        error: error?.message 
+      });
+
       if (error) {
+        console.error('Supabase signIn error:', error);
         throw error;
       }
 
-      // Log authentication event
-      if (data.user) {
-        try {
-          await supabase.rpc('log_auth_event', {
-            p_user_id: data.user.id,
-            p_action: 'login_success',
-            p_metadata: { remember_me: rememberMe },
-          });
-        } catch (logError) {
-          console.error('Error logging auth event:', logError);
-          // Continue anyway
-        }
-      }
+      console.log('Sign in successful, user:', data.user?.id);
+      console.log('About to set auth context loading to false...');
 
-      // Session will be handled by onAuthStateChange
+      // Set loading false immediately, onAuthStateChange will also set it
       setState(prev => ({ ...prev, isLoading: false }));
+      console.log('Auth context loading set to false');
+      console.log('=== AUTH CONTEXT signIn SUCCESS END ===');
+      
     } catch (error) {
+      console.error('signIn error caught in catch block:', error);
       const message = error instanceof AuthError ? error.message : 'Sign in failed';
       setError(message);
-      
-      // Log failed login attempt
-      try {
-        await supabase.rpc('log_auth_event', {
-          p_user_id: null,
-          p_action: 'login_failure',
-          p_metadata: { email, error: message },
-        });
-      } catch (logError) {
-        console.error('Error logging auth event:', logError);
-        // Continue anyway
-      }
-      
       setState(prev => ({ ...prev, isLoading: false }));
+      console.log('=== AUTH CONTEXT signIn ERROR END ===');
       throw error;
     }
-  }, [supabase.auth, supabase, setLoading, clearError, setError, setState]);
+  }, [supabase.auth, setLoading, clearError, setError, setState, state.isLoading, state.isAuthenticated]);
 
   // Sign in with OAuth
   const signInWithOAuth = useCallback(async (provider: 'google' | 'github' | 'azure') => {
