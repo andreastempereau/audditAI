@@ -1,0 +1,31 @@
+# =============================================================================
+# PRODUCTION ENVIRONMENT VARIABLES FOR VERCEL
+# Copy these to Vercel Dashboard > Project Settings > Environment Variables
+# =============================================================================
+
+# CRITICAL - Site Configuration
+NEXT_PUBLIC_SITE_URL=https://www.ausk.ai
+
+# CRITICAL - Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://xziqnrsppwqtxmxpswhi.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6aXFucnNwcHdxdHhteHBzd2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEwMTAwODUsImV4cCI6MjA2NjU4NjA4NX0.1Z95sBRB9NtagTm5n8TbckqEDoYyEKeeoV_FrJHhgW4
+
+# Email Service (for invitations)
+RESEND_API_KEY=re_BR9ueCX3_8QJH6znpmdxKu3WMogRH1d6S
+
+# Production Environment
+NODE_ENV=production
+
+# =============================================================================
+# INSTRUCTIONS FOR VERCEL SETUP:
+# =============================================================================
+# 1. Go to https://vercel.com/dashboard
+# 2. Find your ausk project
+# 3. Go to Settings > Environment Variables
+# 4. Add each variable above:
+#    - Name: NEXT_PUBLIC_SITE_URL
+#    - Value: https://www.ausk.ai
+#    - Environment: Production
+# 5. Repeat for all variables above
+# 6. Trigger a new deployment after adding variables
+# =============================================================================

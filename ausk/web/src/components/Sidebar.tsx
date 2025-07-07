@@ -50,7 +50,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, className }: SidebarProps) => {
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
           isActive
             ? 'bg-primary/10 text-primary border-l-2 border-primary'
-            : 'text-muted-600 hover:bg-muted-100 hover:text-muted-900 dark:text-muted-200 dark:hover:bg-muted-800 dark:hover:text-white'
+            : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
         )}
       >
         <item.icon className="h-5 w-5 shrink-0" />
@@ -77,11 +77,11 @@ const Sidebar = ({ collapsed, onToggleCollapse, className }: SidebarProps) => {
           <Tooltip.Portal>
             <Tooltip.Content
               side="right"
-              className="z-50 rounded-lg bg-muted-900 px-2 py-1 text-xs text-white shadow-md dark:bg-white dark:text-muted-900"
+              className="z-50 rounded-lg bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md"
               sideOffset={8}
             >
               {item.name}
-              <Tooltip.Arrow className="fill-muted-900 dark:fill-white" />
+              <Tooltip.Arrow className="fill-popover" />
             </Tooltip.Content>
           </Tooltip.Portal>
         </Tooltip.Root>
@@ -98,7 +98,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, className }: SidebarProps) => {
         animate={collapsed ? 'collapsed' : 'expanded'}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         className={cn(
-          'flex h-full flex-col border-r border-muted-200 bg-white dark:border-muted-800 dark:bg-muted-900',
+          'flex h-full flex-col border-r border-border bg-card',
           className
         )}
       >
@@ -113,7 +113,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, className }: SidebarProps) => {
               className="flex items-center gap-2"
             >
               <Shield className="h-6 w-6 text-primary" />
-              <span className="font-bold text-muted-900 dark:text-white">Ausk</span>
+              <span className="font-bold text-foreground">Ausk</span>
             </motion.div>
           )}
           
@@ -144,14 +144,14 @@ const Sidebar = ({ collapsed, onToggleCollapse, className }: SidebarProps) => {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-muted-200 p-3 dark:border-muted-800">
+        <div className="border-t border-border p-3">
           {!collapsed && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="text-xs text-muted-500"
+              className="text-xs text-muted-foreground"
             >
               <div className="mb-1 font-medium">Ausk v1.0</div>
               <div>Enterprise Edition</div>

@@ -61,7 +61,7 @@ export default function Chat() {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto space-y-4 p-6">
           {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-muted-500">
+            <div className="flex items-center justify-center h-full text-muted-foreground">
               <div className="text-center">
                 <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
                 <p className="text-sm">Send a message to begin chatting with the AI assistant.</p>
@@ -79,15 +79,15 @@ export default function Chat() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-1">
-                        <span className="text-sm font-medium text-muted-900 dark:text-white">
+                        <span className="text-sm font-medium text-foreground">
                           {msg.userName}
                         </span>
-                        <span className="text-xs text-muted-500">
+                        <span className="text-xs text-muted-foreground">
                           {new Date(msg.createdAt).toLocaleTimeString()}
                         </span>
                       </div>
-                      <div className="bg-white dark:bg-muted-800 rounded-lg p-3 shadow-sm border border-muted-200 dark:border-muted-700">
-                        <p className="text-sm text-muted-900 dark:text-white whitespace-pre-wrap">
+                      <div className="bg-card rounded-lg p-3 shadow-sm border border-border">
+                        <p className="text-sm text-foreground whitespace-pre-wrap">
                           {msg.content}
                         </p>
                       </div>
@@ -101,10 +101,10 @@ export default function Chat() {
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-muted-200 dark:border-muted-700 p-4">
+        <div className="border-t border-border p-4">
           {sendError && (
-            <div className="mb-3 p-3 bg-error-50 border border-error-200 rounded-lg">
-              <p className="text-sm text-error-600">
+            <div className="mb-3 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <p className="text-sm text-destructive">
                 Failed to send message. Please try again.
               </p>
             </div>
@@ -118,7 +118,7 @@ export default function Chat() {
                 onChange={handleInputChange}
                 onKeyPress={handleKeyPress}
                 placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
-                className="w-full min-h-[44px] max-h-32 p-3 border border-muted-300 rounded-lg resize-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-muted-800 dark:border-muted-600 dark:text-white"
+                className="w-full min-h-[44px] max-h-32 p-3 border border-input rounded-lg resize-none focus:ring-2 focus:ring-ring focus:border-ring bg-background text-foreground"
                 disabled={isSending}
               />
             </div>

@@ -53,7 +53,7 @@ const Header = ({ onMenuClick, sidebarCollapsed }: HeaderProps) => {
   const ThemeIcon = themeIcons[theme];
 
   return (
-    <header className="sticky top-0 z-40 h-14 border-b border-muted-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:border-muted-800 dark:bg-muted-900/95 dark:supports-[backdrop-filter]:bg-muted-900/60">
+    <header className="sticky top-0 z-40 h-14 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-full items-center justify-between px-4">
         {/* Left side */}
         <div className="flex items-center gap-4">
@@ -71,15 +71,15 @@ const Header = ({ onMenuClick, sidebarCollapsed }: HeaderProps) => {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Shield className="h-6 w-6 text-primary" />
-              <span className="hidden font-bold text-muted-900 dark:text-white sm:block">
+              <span className="hidden font-bold text-foreground sm:block">
                 Ausk
               </span>
             </div>
             
-            <div className="hidden h-6 w-px bg-muted-200 dark:bg-muted-700 sm:block" />
+            <div className="hidden h-6 w-px bg-border sm:block" />
             
             <nav className="hidden sm:block" aria-label="Breadcrumb">
-              <span className="text-sm font-medium text-muted-900 dark:text-white">
+              <span className="text-sm font-medium text-foreground">
                 {getBreadcrumb()}
               </span>
             </nav>
@@ -100,25 +100,25 @@ const Header = ({ onMenuClick, sidebarCollapsed }: HeaderProps) => {
                   </DropdownMenu.Trigger>
                   <DropdownMenu.Portal>
                     <DropdownMenu.Content
-                      className="z-50 min-w-[8rem] rounded-lg border border-muted-200 bg-white p-1 shadow-md dark:border-muted-800 dark:bg-muted-900"
+                      className="z-50 min-w-[8rem] rounded-lg border border-border bg-popover p-1 shadow-md"
                       sideOffset={4}
                     >
                       <DropdownMenu.Item
-                        className="relative flex cursor-pointer select-none items-center rounded-md px-2 py-1.5 text-sm outline-none hover:bg-muted-100 dark:hover:bg-muted-800"
+                        className="relative flex cursor-pointer select-none items-center rounded-md px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
                         onClick={() => setTheme('light')}
                       >
                         <Sun className="mr-2 h-4 w-4" />
                         Light
                       </DropdownMenu.Item>
                       <DropdownMenu.Item
-                        className="relative flex cursor-pointer select-none items-center rounded-md px-2 py-1.5 text-sm outline-none hover:bg-muted-100 dark:hover:bg-muted-800"
+                        className="relative flex cursor-pointer select-none items-center rounded-md px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
                         onClick={() => setTheme('dark')}
                       >
                         <Moon className="mr-2 h-4 w-4" />
                         Dark
                       </DropdownMenu.Item>
                       <DropdownMenu.Item
-                        className="relative flex cursor-pointer select-none items-center rounded-md px-2 py-1.5 text-sm outline-none hover:bg-muted-100 dark:hover:bg-muted-800"
+                        className="relative flex cursor-pointer select-none items-center rounded-md px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
                         onClick={() => setTheme('system')}
                       >
                         <Monitor className="mr-2 h-4 w-4" />
@@ -130,11 +130,11 @@ const Header = ({ onMenuClick, sidebarCollapsed }: HeaderProps) => {
               </Tooltip.Trigger>
               <Tooltip.Portal>
                 <Tooltip.Content
-                  className="z-50 rounded-lg bg-muted-900 px-2 py-1 text-xs text-white shadow-md dark:bg-white dark:text-muted-900"
+                  className="z-50 rounded-lg bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md"
                   sideOffset={4}
                 >
                   Toggle theme
-                  <Tooltip.Arrow className="fill-muted-900 dark:fill-white" />
+                  <Tooltip.Arrow className="fill-popover" />
                 </Tooltip.Content>
               </Tooltip.Portal>
             </Tooltip.Root>
@@ -157,23 +157,23 @@ const Header = ({ onMenuClick, sidebarCollapsed }: HeaderProps) => {
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               <DropdownMenu.Content
-                className="z-50 min-w-[12rem] rounded-lg border border-muted-200 bg-white p-1 shadow-md dark:border-muted-800 dark:bg-muted-900"
+                className="z-50 min-w-[12rem] rounded-lg border border-border bg-popover p-1 shadow-md"
                 sideOffset={4}
                 align="end"
               >
                 <DropdownMenu.Label className="px-2 py-1.5 text-sm font-semibold">
                   {user?.name || user?.email}
                 </DropdownMenu.Label>
-                <DropdownMenu.Separator className="my-1 h-px bg-muted-200 dark:bg-muted-800" />
-                <DropdownMenu.Item className="relative flex cursor-pointer select-none items-center rounded-md px-2 py-1.5 text-sm outline-none hover:bg-muted-100 dark:hover:bg-muted-800">
+                <DropdownMenu.Separator className="my-1 h-px bg-border" />
+                <DropdownMenu.Item className="relative flex cursor-pointer select-none items-center rounded-md px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground">
                   Profile
                 </DropdownMenu.Item>
-                <DropdownMenu.Item className="relative flex cursor-pointer select-none items-center rounded-md px-2 py-1.5 text-sm outline-none hover:bg-muted-100 dark:hover:bg-muted-800">
+                <DropdownMenu.Item className="relative flex cursor-pointer select-none items-center rounded-md px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground">
                   Settings
                 </DropdownMenu.Item>
-                <DropdownMenu.Separator className="my-1 h-px bg-muted-200 dark:bg-muted-800" />
+                <DropdownMenu.Separator className="my-1 h-px bg-border" />
                 <DropdownMenu.Item 
-                  className="relative flex cursor-pointer select-none items-center rounded-md px-2 py-1.5 text-sm text-error-600 outline-none hover:bg-error-50 dark:text-error-400 dark:hover:bg-error-900/20"
+                  className="relative flex cursor-pointer select-none items-center rounded-md px-2 py-1.5 text-sm text-destructive outline-none hover:bg-destructive/10"
                   onClick={handleSignOut}
                 >
                   Sign out

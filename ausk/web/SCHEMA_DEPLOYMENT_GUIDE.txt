@@ -1,0 +1,99 @@
+# =============================================================================
+# SCHEMA DEPLOYMENT GUIDE
+# =============================================================================
+
+# IF DATABASE VERIFICATION SHOWS MISSING TABLES:
+
+# Option 1: Apply Full Schema (Recommended)
+# 1. Go to Supabase Dashboard > SQL Editor
+# 2. Copy the ENTIRE contents of: /supabase/migrations/001_core_schema.sql
+# 3. Paste into SQL Editor and click "Run"
+# 4. This creates all tables, policies, and functions needed
+
+# Option 2: Quick Core Tables Only (Minimum for MVP)
+# If the full schema is too large, run this minimal version:
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Profiles table
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    name VARCHAR(255),
+    email VARCHAR(255) UNIQUE,
+    picture_url TEXT,
+    first_time BOOLEAN DEFAULT true,
+    mfa_enabled BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Organizations table
+CREATE TABLE IF NOT EXISTS public.organizations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- User-Organization relationships
+CREATE TABLE IF NOT EXISTS public.user_organizations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    role VARCHAR(50) NOT NULL DEFAULT 'member',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, organization_id)
+);
+
+-- Chat threads
+CREATE TABLE IF NOT EXISTS public.chat_threads (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    created_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+    participants UUID[] NOT NULL DEFAULT '{}',
+    message_count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Chat messages
+CREATE TABLE IF NOT EXISTS public.chat_messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    thread_id UUID NOT NULL REFERENCES public.chat_threads(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+    content TEXT NOT NULL,
+    sequence_number INTEGER NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Documents
+CREATE TABLE IF NOT EXISTS public.documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    title VARCHAR(500) NOT NULL,
+    file_size BIGINT,
+    mime_type VARCHAR(200),
+    checksum VARCHAR(64),
+    storage_path TEXT,
+    sensitivity_level VARCHAR(20) NOT NULL DEFAULT 'restricted',
+    total_versions INTEGER NOT NULL DEFAULT 1,
+    created_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
+);
+
+-- Enable RLS on all tables
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_threads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
+
+# =============================================================================
+# AFTER RUNNING SCHEMA: Re-run DATABASE_VERIFICATION.sql to confirm
+# =============================================================================

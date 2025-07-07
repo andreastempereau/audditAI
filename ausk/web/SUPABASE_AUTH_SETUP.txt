@@ -1,0 +1,31 @@
+# =============================================================================
+# SUPABASE AUTHENTICATION URL CONFIGURATION
+# =============================================================================
+
+# STEP 1: Go to Supabase Dashboard > Authentication > URL Configuration
+
+# STEP 2: Set Site URL
+Site URL: https://www.ausk.ai
+
+# STEP 3: Add Redirect URLs (one per line)
+https://www.ausk.ai/auth/callback
+https://www.ausk.ai/login
+https://www.ausk.ai/register
+https://www.ausk.ai/verify-email
+
+# STEP 4: OAuth Provider Settings (if using OAuth)
+# Go to Authentication > Providers
+# For Google OAuth:
+# - Authorized JavaScript origins: https://www.ausk.ai
+# - Authorized redirect URIs: https://www.ausk.ai/auth/callback
+
+# =============================================================================
+# NAVIGATION INSTRUCTIONS:
+# =============================================================================
+# 1. Go to https://app.supabase.com/
+# 2. Select your project: xziqnrsppwqtxmxpswhi
+# 3. Left sidebar: Authentication
+# 4. Click "URL Configuration" tab
+# 5. Update Site URL and Redirect URLs as shown above
+# 6. Click "Save"
+# =============================================================================
