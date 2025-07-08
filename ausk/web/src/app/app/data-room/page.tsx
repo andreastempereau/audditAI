@@ -114,21 +114,23 @@ export default function DataRoomPage() {
           />
           <label htmlFor="file-upload">
             <Button 
-              as="span" 
+              asChild
               className="cursor-pointer"
               disabled={isUploading}
             >
-              {isUploading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload Document
-                </>
-              )}
+              <span>
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload Document
+                  </>
+                )}
+              </span>
             </Button>
           </label>
         </div>
@@ -232,9 +234,11 @@ export default function DataRoomPage() {
           </p>
           {!searchQuery && (
             <label htmlFor="file-upload-empty">
-              <Button as="span" variant="outline" className="cursor-pointer">
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Document
+              <Button asChild variant="outline" className="cursor-pointer">
+                <span>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Document
+                </span>
               </Button>
             </label>
           )}

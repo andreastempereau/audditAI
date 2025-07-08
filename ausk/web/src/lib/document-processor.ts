@@ -261,24 +261,31 @@ export class DocumentProcessor {
     metadata: DocumentMetadata;
   }> {
     try {
-      const XLSX = require('xlsx');
-      const workbook = XLSX.read(buffer, { type: 'buffer' });
+      const Excel = require('exceljs');
+      const workbook = new Excel.Workbook();
+      await workbook.xlsx.load(buffer);
+      
       let content = '';
       
-      // Process all sheets
-      workbook.SheetNames.forEach((sheetName: string) => {
-        const sheet = workbook.Sheets[sheetName];
-        const sheetData = XLSX.utils.sheet_to_txt(sheet);
-        content += `Sheet: ${sheetName}\n${sheetData}\n\n`;
+      // Process all worksheets
+      workbook.eachSheet((worksheet: any, sheetId: number) => {
+        content += `Sheet: ${worksheet.name}\n`;
+        
+        worksheet.eachRow((row: any, rowNumber: number) => {
+          const values = row.values.slice(1); // Remove the first undefined element
+          if (values.some((val: any) => val !== undefined && val !== null && val !== '')) {
+            content += values.join('\t') + '\n';
+          }
+        });
+        
+        content += '\n';
       });
       
-      // Extract metadata
-      if (workbook.Props) {
-        metadata.author = workbook.Props.Author;
-        metadata.title = workbook.Props.Title;
-        metadata.createdAt = workbook.Props.CreatedDate ? new Date(workbook.Props.CreatedDate) : undefined;
-        metadata.modifiedAt = workbook.Props.ModifiedDate ? new Date(workbook.Props.ModifiedDate) : undefined;
-      }
+      // Extract metadata from workbook properties
+      if (workbook.creator) metadata.author = workbook.creator;
+      if (workbook.title) metadata.title = workbook.title;
+      if (workbook.created) metadata.createdAt = new Date(workbook.created);
+      if (workbook.modified) metadata.modifiedAt = new Date(workbook.modified);
       
       return { content: content.trim(), metadata };
     } catch (error) {

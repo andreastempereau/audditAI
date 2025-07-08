@@ -183,7 +183,7 @@ export default function MembersPage() {
                 <Avatar>
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <span className="text-sm font-medium text-primary">
-                      {member.name.split(' ').map(n => n[0]).join('')}
+                      {member.name.split(' ').map((n: string) => n[0]).join('')}
                     </span>
                   </div>
                 </Avatar>

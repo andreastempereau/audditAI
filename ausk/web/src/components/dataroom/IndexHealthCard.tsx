@@ -17,8 +17,8 @@ export function IndexHealthCard({ health }: IndexHealthCardProps) {
       <Card className="w-64">
         <CardContent className="p-4">
           <div className="flex items-center space-x-2">
-            <Activity className="w-4 h-4 text-muted-500 animate-pulse" />
-            <span className="text-sm text-muted-600">Loading index status...</span>
+            <Activity className="w-4 h-4 text-muted-foreground animate-pulse" />
+            <span className="text-sm text-muted-foreground">Loading index status...</span>
           </div>
         </CardContent>
       </Card>
@@ -27,7 +27,7 @@ export function IndexHealthCard({ health }: IndexHealthCardProps) {
 
   const isStale = health.pendingJobs > 0 || health.orphanCount > 100;
   const statusIcon = health.isHealthy && !isStale ? CheckCircle : AlertTriangle;
-  const statusColor = health.isHealthy && !isStale ? 'text-success-600' : 'text-warning-600';
+  const statusColor = health.isHealthy && !isStale ? 'text-success' : 'text-warning';
 
   return (
     <Card className="w-64">

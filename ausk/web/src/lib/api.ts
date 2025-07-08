@@ -46,6 +46,7 @@ export interface FileItem {
   uploadedBy: string;
 }
 
+
 export interface AuditLog {
   id: string;
   action: string;
@@ -56,19 +57,7 @@ export interface AuditLog {
   timestamp: string;
 }
 
-export interface Organization {
-  id: string;
-  name: string;
-  webhookUrl?: string;
-  settings: Record<string, any>;
-}
 
-export interface ApiKey {
-  id: string;
-  provider: string;
-  masked: string;
-  createdAt: string;
-}
 
 // Data Room types
 export interface DataRoomFile {
@@ -85,8 +74,11 @@ export interface DataRoomFile {
   versions: number;
   lastModified: string;
   uploadedAt: string;
+  uploadedBy: string;
   url?: string;
   previewUrl?: string;
+  version: number;
+  checksum: string;
 }
 
 export interface FileVersion {
@@ -224,6 +216,32 @@ export interface OnboardingData {
   useCaseTags: string[];
   inviteEmails: string[];
 }
+
+export interface Organization {
+  id: string;
+  name: string;
+  website?: string;
+  description?: string;
+  tier: 'free' | 'pro' | 'enterprise';
+  settings?: {
+    timezone?: string;
+    emailNotifications?: boolean;
+    twoFactorRequired?: boolean;
+    sessionTimeout?: number;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  provider: string;
+  masked: string;
+  lastUsed?: string;
+  createdAt: string;
+}
+
 
 // Create API client
 const api = ky.create({

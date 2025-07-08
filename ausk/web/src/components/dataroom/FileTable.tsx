@@ -19,31 +19,31 @@ export function FileTable({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-muted-500">Loading files...</div>
+        <div className="text-muted-foreground">Loading files...</div>
       </div>
     );
   }
 
   return (
-    <div className="card overflow-hidden">
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-muted-50 dark:bg-muted-800">
+          <thead className="bg-muted">
             <tr>
-              <th className="p-3 text-left text-sm font-medium text-muted-700">
+              <th className="p-3 text-left text-sm font-medium text-muted-foreground">
                 <input type="checkbox" />
               </th>
-              <th className="p-3 text-left text-sm font-medium text-muted-700">Name</th>
-              <th className="p-3 text-left text-sm font-medium text-muted-700">Size</th>
-              <th className="p-3 text-left text-sm font-medium text-muted-700">Modified</th>
-              <th className="p-3 text-left text-sm font-medium text-muted-700">Owner</th>
+              <th className="p-3 text-left text-sm font-medium text-muted-foreground">Name</th>
+              <th className="p-3 text-left text-sm font-medium text-muted-foreground">Size</th>
+              <th className="p-3 text-left text-sm font-medium text-muted-foreground">Modified</th>
+              <th className="p-3 text-left text-sm font-medium text-muted-foreground">Owner</th>
             </tr>
           </thead>
           <tbody>
             {files.map((file) => (
               <tr 
                 key={file.id}
-                className="border-t border-muted-200 hover:bg-muted-50 cursor-pointer"
+                className="border-t border-border hover:bg-muted/50 cursor-pointer"
                 onClick={() => onFileClick(file)}
               >
                 <td className="p-3">

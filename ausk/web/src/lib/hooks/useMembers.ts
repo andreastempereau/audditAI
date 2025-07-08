@@ -60,8 +60,19 @@ export function useMembers() {
         return [];
       }
 
-      // Transform data to match interface
-      return memberData.map((member: any) => ({
+      // Get pending invitations
+      const { data: invitationData, error: invitationError } = await supabase
+        .from('invitations')
+        .select('email, role, created_at')
+        .eq('organization_id', userOrg.organization_id)
+        .eq('status', 'pending');
+
+      if (invitationError) {
+        console.error('Error fetching invitations:', invitationError);
+      }
+
+      // Transform member data
+      const members = memberData.map((member: any) => ({
         id: member.user_id,
         name: member.profiles?.name || 'Unknown',
         email: member.profiles?.email || 'Unknown',
@@ -69,9 +80,24 @@ export function useMembers() {
         department: 'General', // Default department
         joinedAt: member.created_at,
         lastActive: member.profiles?.last_active || new Date().toISOString(),
-        status: 'active' as const, // Default to active
+        status: 'active' as const,
         twoFactorEnabled: member.profiles?.two_factor_enabled || false,
       }));
+
+      // Add invited members
+      const invitedMembers = (invitationData || []).map((invitation: any) => ({
+        id: `invite-${invitation.email}`,
+        name: invitation.email.split('@')[0],
+        email: invitation.email,
+        role: invitation.role,
+        department: 'General',
+        joinedAt: invitation.created_at,
+        lastActive: invitation.created_at,
+        status: 'invited' as const,
+        twoFactorEnabled: false,
+      }));
+
+      return [...members, ...invitedMembers];
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000, // 5 minutes
