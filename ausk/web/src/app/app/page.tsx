@@ -1,55 +1,48 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Send, Paperclip, Mic, Bot, User } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Send, Paperclip, Mic, Bot, User, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-
-interface Message {
-  id: string;
-  content: string;
-  role: 'user' | 'assistant';
-  timestamp: Date;
-}
+import { useChat } from '@/lib/hooks/useChat';
+import { useAuth } from '@/lib/auth-supabase';
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      content: 'Welcome to Ausk AI! How can I help you with your governance and compliance needs today?',
-      role: 'assistant',
-      timestamp: new Date(),
-    },
-  ]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+  const { 
+    messages, 
+    sendMessage, 
+    isSending,
+    sendError,
+    isLoading: isLoadingMessages
+  } = useChat();
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isSending) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: input,
-      role: 'user',
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
+    const message = input;
     setInput('');
-    setIsLoading(true);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: 'I understand your query. Let me help you with that...',
-        role: 'assistant',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-      setIsLoading(false);
-    }, 1000);
+    
+    try {
+      await sendMessage(message);
+      // Note: Real AI integration would go here
+      // For now, the message is just stored in the database
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // Restore input on error
+      setInput(message);
+    }
   };
 
   return (
@@ -64,50 +57,71 @@ export default function ChatPage() {
       <Card className="flex-1 flex flex-col p-0 overflow-hidden">
         {/* Messages Container */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex gap-3 ${
-                message.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
-            >
-              <div
-                className={`flex gap-3 max-w-[80%] ${
-                  message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                }`}
-              >
-                <div className="flex-shrink-0">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      message.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
-                    }`}
-                  >
-                    {message.role === 'user' ? (
-                      <User className="w-4 h-4" />
-                    ) : (
-                      <Bot className="w-4 h-4" />
-                    )}
-                  </div>
-                </div>
-                <div
-                  className={`px-4 py-2 rounded-lg ${
-                    message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  }`}
-                >
-                  <p className="text-sm">{message.content}</p>
-                  <p className="text-xs opacity-70 mt-1">
-                    {message.timestamp.toLocaleTimeString()}
-                  </p>
-                </div>
+          {isLoadingMessages ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-center">
+              <div>
+                <Bot className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">Start a Conversation</h3>
+                <p className="text-sm text-muted-foreground">
+                  Ask questions about governance, compliance, or your documents
+                </p>
               </div>
             </div>
-          ))}
+          ) : (
+            messages.map((message) => {
+              const isCurrentUser = message.userId === user?.id;
+              return (
+                <div
+                  key={message.id}
+                  className={`flex gap-3 ${
+                    isCurrentUser ? 'justify-end' : 'justify-start'
+                  }`}
+                >
+                  <div
+                    className={`flex gap-3 max-w-[80%] ${
+                      isCurrentUser ? 'flex-row-reverse' : 'flex-row'
+                    }`}
+                  >
+                    <div className="flex-shrink-0">
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          isCurrentUser
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted'
+                        }`}
+                      >
+                        {isCurrentUser ? (
+                          <span className="text-xs font-medium">
+                            {message.userName?.charAt(0).toUpperCase() || 'U'}
+                          </span>
+                        ) : (
+                          <Bot className="w-4 h-4" />
+                        )}
+                      </div>
+                    </div>
+                    <div
+                      className={`px-4 py-2 rounded-lg ${
+                        isCurrentUser
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted'
+                      }`}
+                    >
+                      <p className="text-sm">{message.content}</p>
+                      <p className="text-xs opacity-70 mt-1">
+                        {new Date(message.createdAt).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
           
-          {isLoading && (
+          {isSending && (
             <div className="flex gap-3">
               <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                 <Bot className="w-4 h-4" />
@@ -121,10 +135,16 @@ export default function ChatPage() {
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Form */}
         <form onSubmit={handleSubmit} className="p-4 border-t">
+          {sendError && (
+            <div className="mb-2 p-2 bg-destructive/10 border border-destructive/20 rounded text-sm text-destructive">
+              Failed to send message. Please try again.
+            </div>
+          )}
           <div className="flex gap-2">
             <button
               type="button"
@@ -138,7 +158,7 @@ export default function ChatPage() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your message..."
               className="flex-1 px-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-              disabled={isLoading}
+              disabled={isSending}
             />
             <button
               type="button"
@@ -146,7 +166,7 @@ export default function ChatPage() {
             >
               <Mic className="w-5 h-5" />
             </button>
-            <Button type="submit" disabled={!input.trim() || isLoading}>
+            <Button type="submit" disabled={!input.trim() || isSending}>
               <Send className="w-4 h-4" />
             </Button>
           </div>

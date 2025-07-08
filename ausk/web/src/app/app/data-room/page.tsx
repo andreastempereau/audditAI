@@ -3,338 +3,422 @@
 import React, { useState } from 'react';
 import { 
   Upload, 
+  Grid3X3, 
+  List, 
+  Search, 
   FileText, 
   Image, 
-  File, 
-  MoreVertical,
-  Search,
-  Filter,
-  Grid,
-  List,
+  FileSpreadsheet,
+  File,
   Download,
-  Share2,
   Trash2,
-  Eye
+  Eye,
+  MoreVertical,
+  Filter,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger 
-} from '@/components/ui/DropdownMenu';
+import { Badge } from '@/components/ui/Badge';
+import { useDataRoom } from '@/lib/hooks/useDataRoom';
+import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 
-interface Document {
-  id: string;
-  name: string;
-  type: 'pdf' | 'image' | 'document' | 'other';
-  size: string;
-  uploadedAt: Date;
-  uploadedBy: string;
-  lastModified: Date;
-  tags: string[];
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 export default function DataRoomPage() {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [uploadingFile, setUploadingFile] = useState<File | null>(null);
+  
+  const { 
+    files, 
+    isLoading, 
+    uploadFile, 
+    deleteFile,
+    isUploading,
+    uploadProgress 
+  } = useDataRoom();
 
-  // Mock data
-  const documents: Document[] = [
-    {
-      id: '1',
-      name: 'Q4 2023 Financial Report.pdf',
-      type: 'pdf',
-      size: '2.4 MB',
-      uploadedAt: new Date('2024-01-15'),
-      uploadedBy: 'John Doe',
-      lastModified: new Date('2024-01-15'),
-      tags: ['financial', 'quarterly', '2023'],
-    },
-    {
-      id: '2',
-      name: 'Compliance Certificate 2024.pdf',
-      type: 'pdf',
-      size: '1.1 MB',
-      uploadedAt: new Date('2024-01-10'),
-      uploadedBy: 'Jane Smith',
-      lastModified: new Date('2024-01-10'),
-      tags: ['compliance', 'certificate', '2024'],
-    },
-    {
-      id: '3',
-      name: 'Board Meeting Minutes.docx',
-      type: 'document',
-      size: '456 KB',
-      uploadedAt: new Date('2024-01-05'),
-      uploadedBy: 'Mike Johnson',
-      lastModified: new Date('2024-01-08'),
-      tags: ['board', 'minutes', 'meeting'],
-    },
-  ];
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const getFileIcon = (type: Document['type']) => {
-    switch (type) {
-      case 'pdf':
-        return <FileText className="w-8 h-8 text-red-500" />;
-      case 'image':
-        return <Image className="w-8 h-8 text-blue-500" />;
-      case 'document':
-        return <FileText className="w-8 h-8 text-blue-600" />;
-      default:
-        return <File className="w-8 h-8 text-gray-500" />;
+    setUploadingFile(file);
+    try {
+      await uploadFile(file, {
+        sensitivity: 'restricted',
+        encrypted: true
+      });
+      setUploadingFile(null);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setUploadingFile(null);
     }
   };
 
-  const filteredDocuments = documents.filter(doc =>
-    doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    doc.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+  const handleDelete = async (fileId: string) => {
+    if (confirm('Are you sure you want to delete this file?')) {
+      try {
+        await deleteFile(fileId);
+      } catch (error) {
+        console.error('Delete failed:', error);
+      }
+    }
+  };
+
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith('image/')) return Image;
+    if (mimeType.includes('pdf')) return FileText;
+    if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return FileSpreadsheet;
+    if (mimeType.includes('document') || mimeType.includes('word')) return FileText;
+    return File;
+  };
+
+  const filteredFiles = files.filter(file =>
+    file.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const toggleFileSelection = (fileId: string) => {
+    setSelectedFiles(prev =>
+      prev.includes(fileId)
+        ? prev.filter(id => id !== fileId)
+        : [...prev, fileId]
+    );
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Data Room</h1>
-        <p className="text-muted-foreground mt-2">
-          Securely store and manage your governance documents
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Data Room</h1>
+          <p className="text-muted-foreground mt-2">
+            Securely manage and share your sensitive documents
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="file"
+            onChange={handleFileUpload}
+            className="hidden"
+            id="file-upload"
+            disabled={isUploading}
+          />
+          <label htmlFor="file-upload">
+            <Button 
+              as="span" 
+              className="cursor-pointer"
+              disabled={isUploading}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Document
+                </>
+              )}
+            </Button>
+          </label>
+        </div>
       </div>
 
-      {/* Actions Bar */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between">
-        <div className="flex gap-2">
-          <Button className="gap-2">
-            <Upload className="w-4 h-4" />
-            Upload Files
-          </Button>
-          <Button variant="outline" className="gap-2">
-            <Share2 className="w-4 h-4" />
-            Share
-          </Button>
-        </div>
-        
-        <div className="flex gap-2">
-          <div className="relative flex-1 sm:w-64">
+      {/* Filters and View Toggle */}
+      <Card className="p-4">
+        <div className="flex flex-col sm:flex-row gap-4 justify-between">
+          <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
+            <input
               type="text"
               placeholder="Search documents..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="w-full pl-10 pr-4 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
-          <Button variant="outline" size="icon">
-            <Filter className="w-4 h-4" />
-          </Button>
-          <div className="flex border rounded-lg">
-            <Button
-              variant={view === 'grid' ? 'default' : 'ghost'}
-              size="icon"
-              onClick={() => setView('grid')}
-              className="rounded-r-none"
-            >
-              <Grid className="w-4 h-4" />
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm">
+              <Filter className="w-4 h-4 mr-2" />
+              Filters
             </Button>
-            <Button
-              variant={view === 'list' ? 'default' : 'ghost'}
-              size="icon"
-              onClick={() => setView('list')}
-              className="rounded-l-none"
-            >
-              <List className="w-4 h-4" />
-            </Button>
+            <div className="flex bg-muted rounded-lg p-1">
+              <button
+                onClick={() => setView('grid')}
+                className={cn(
+                  "p-1.5 rounded transition-colors",
+                  view === 'grid' 
+                    ? 'bg-background text-foreground shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setView('list')}
+                className={cn(
+                  "p-1.5 rounded transition-colors",
+                  view === 'list' 
+                    ? 'bg-background text-foreground shadow-sm' 
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Documents Grid/List */}
-      {view === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredDocuments.map((doc) => (
-            <Card
-              key={doc.id}
-              className={`p-4 cursor-pointer transition-all hover:shadow-lg ${
-                selectedFiles.includes(doc.id) ? 'ring-2 ring-primary' : ''
-              }`}
-              onClick={() => {
-                setSelectedFiles(prev =>
-                  prev.includes(doc.id)
-                    ? prev.filter(id => id !== doc.id)
-                    : [...prev, doc.id]
-                );
-              }}
-            >
-              <div className="flex justify-between items-start mb-3">
-                {getFileIcon(doc.type)}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                      <Eye className="w-4 h-4 mr-2" />
-                      Preview
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Download className="w-4 h-4 mr-2" />
-                      Download
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Share2 className="w-4 h-4 mr-2" />
-                      Share
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              
-              <h3 className="font-medium text-sm mb-1 truncate">{doc.name}</h3>
-              <p className="text-xs text-muted-foreground mb-2">{doc.size}</p>
-              
-              <div className="flex gap-1 flex-wrap mb-2">
-                {doc.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-2 py-1 bg-muted text-xs rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              
-              <p className="text-xs text-muted-foreground">
-                Uploaded {doc.uploadedAt.toLocaleDateString()}
-              </p>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <div className="divide-y">
-            {filteredDocuments.map((doc) => (
-              <div
-                key={doc.id}
-                className={`p-4 flex items-center gap-4 hover:bg-muted/50 cursor-pointer ${
-                  selectedFiles.includes(doc.id) ? 'bg-muted/50' : ''
-                }`}
-                onClick={() => {
-                  setSelectedFiles(prev =>
-                    prev.includes(doc.id)
-                      ? prev.filter(id => id !== doc.id)
-                      : [...prev, doc.id]
-                  );
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedFiles.includes(doc.id)}
-                  onChange={() => {}}
-                  className="rounded"
-                  onClick={(e) => e.stopPropagation()}
-                />
-                
-                {getFileIcon(doc.type)}
-                
-                <div className="flex-1">
-                  <h3 className="font-medium">{doc.name}</h3>
-                  <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                    <span>{doc.size}</span>
-                    <span>•</span>
-                    <span>Uploaded by {doc.uploadedBy}</span>
-                    <span>•</span>
-                    <span>{doc.uploadedAt.toLocaleDateString()}</span>
-                  </div>
-                </div>
-                
-                <div className="flex gap-1">
-                  {doc.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-2 py-1 bg-muted text-xs rounded-full"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                      <Eye className="w-4 h-4 mr-2" />
-                      Preview
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Download className="w-4 h-4 mr-2" />
-                      Download
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Share2 className="w-4 h-4 mr-2" />
-                      Share
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ))}
+        {selectedFiles.length > 0 && (
+          <div className="mt-4 p-2 bg-primary/10 rounded-lg flex items-center justify-between">
+            <span className="text-sm">
+              {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
+            </span>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline">
+                <Download className="w-4 h-4 mr-1" />
+                Download
+              </Button>
+              <Button size="sm" variant="destructive">
+                <Trash2 className="w-4 h-4 mr-1" />
+                Delete
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Upload Progress */}
+      {uploadingFile && isUploading && (
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">Uploading {uploadingFile.name}</span>
+            <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-2">
+            <div 
+              className="bg-primary h-2 rounded-full transition-all duration-300"
+              style={{ width: `${uploadProgress}%` }}
+            />
           </div>
         </Card>
       )}
 
-      {/* Selected Files Actions */}
-      {selectedFiles.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-background border rounded-lg shadow-lg p-4">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium">
-              {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
-            </span>
-            <Button variant="outline" size="sm">
-              <Download className="w-4 h-4 mr-2" />
-              Download
-            </Button>
-            <Button variant="outline" size="sm">
-              <Share2 className="w-4 h-4 mr-2" />
-              Share
-            </Button>
-            <Button variant="destructive" size="sm">
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedFiles([])}
-            >
-              Clear
-            </Button>
-          </div>
+      {/* Documents */}
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
+      ) : filteredFiles.length === 0 ? (
+        <Card className="p-12 text-center">
+          <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+          <h3 className="text-lg font-medium mb-2">
+            {searchQuery ? 'No documents found' : 'No documents yet'}
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            {searchQuery 
+              ? 'Try adjusting your search terms' 
+              : 'Upload your first document to get started'}
+          </p>
+          {!searchQuery && (
+            <label htmlFor="file-upload-empty">
+              <Button as="span" variant="outline" className="cursor-pointer">
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Document
+              </Button>
+            </label>
+          )}
+          <input
+            type="file"
+            onChange={handleFileUpload}
+            className="hidden"
+            id="file-upload-empty"
+          />
+        </Card>
+      ) : view === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filteredFiles.map((file) => {
+            const Icon = getFileIcon(file.type);
+            const isSelected = selectedFiles.includes(file.id);
+            
+            return (
+              <Card
+                key={file.id}
+                className={cn(
+                  "p-4 hover:shadow-lg transition-all cursor-pointer",
+                  isSelected && "ring-2 ring-primary"
+                )}
+                onClick={() => toggleFileSelection(file.id)}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div className={cn(
+                    "p-3 rounded-lg",
+                    isSelected ? "bg-primary/20" : "bg-muted"
+                  )}>
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <button 
+                    className="p-1 hover:bg-muted rounded"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Open dropdown menu
+                    }}
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                </div>
+                <h3 className="font-medium text-sm mb-1 truncate" title={file.name}>
+                  {file.name}
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  {formatFileSize(file.size)} • {formatDistanceToNow(new Date(file.uploadedAt), { addSuffix: true })}
+                </p>
+                <div className="flex items-center justify-between">
+                  <Badge variant={
+                    file.sensitivity === 'confidential' ? 'destructive' : 
+                    file.sensitivity === 'restricted' ? 'warning' : 
+                    'default'
+                  } className="text-xs">
+                    {file.sensitivity}
+                  </Badge>
+                  <div className="flex gap-1">
+                    <button 
+                      className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Handle view
+                      }}
+                    >
+                      <Eye className="w-3 h-3" />
+                    </button>
+                    <button 
+                      className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Handle download
+                      }}
+                    >
+                      <Download className="w-3 h-3" />
+                    </button>
+                    <button 
+                      className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(file.id);
+                      }}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <Card className="overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="text-left p-4 font-medium text-sm">
+                  <input 
+                    type="checkbox"
+                    className="rounded"
+                    checked={selectedFiles.length === filteredFiles.length && filteredFiles.length > 0}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedFiles(filteredFiles.map(f => f.id));
+                      } else {
+                        setSelectedFiles([]);
+                      }
+                    }}
+                  />
+                </th>
+                <th className="text-left p-4 font-medium text-sm">Name</th>
+                <th className="text-left p-4 font-medium text-sm">Size</th>
+                <th className="text-left p-4 font-medium text-sm">Uploaded</th>
+                <th className="text-left p-4 font-medium text-sm">Security</th>
+                <th className="text-left p-4 font-medium text-sm">Owner</th>
+                <th className="text-right p-4 font-medium text-sm">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {filteredFiles.map((file) => {
+                const Icon = getFileIcon(file.type);
+                const isSelected = selectedFiles.includes(file.id);
+                
+                return (
+                  <tr 
+                    key={file.id} 
+                    className={cn(
+                      "hover:bg-muted/50 transition-colors",
+                      isSelected && "bg-primary/5"
+                    )}
+                  >
+                    <td className="p-4">
+                      <input 
+                        type="checkbox"
+                        className="rounded"
+                        checked={isSelected}
+                        onChange={() => toggleFileSelection(file.id)}
+                      />
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <Icon className="w-5 h-5 text-muted-foreground" />
+                        <span className="font-medium">{file.name}</span>
+                      </div>
+                    </td>
+                    <td className="p-4 text-sm text-muted-foreground">
+                      {formatFileSize(file.size)}
+                    </td>
+                    <td className="p-4 text-sm text-muted-foreground">
+                      {formatDistanceToNow(new Date(file.uploadedAt), { addSuffix: true })}
+                    </td>
+                    <td className="p-4">
+                      <Badge variant={
+                        file.sensitivity === 'confidential' ? 'destructive' : 
+                        file.sensitivity === 'restricted' ? 'warning' : 
+                        'default'
+                      } className="text-xs">
+                        {file.sensitivity}
+                      </Badge>
+                    </td>
+                    <td className="p-4 text-sm text-muted-foreground">
+                      {file.owner}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex gap-1 justify-end">
+                        <button className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground">
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground">
+                          <Download className="w-4 h-4" />
+                        </button>
+                        <button 
+                          className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDelete(file.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Card>
       )}
     </div>
   );

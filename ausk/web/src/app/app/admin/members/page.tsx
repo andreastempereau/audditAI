@@ -12,7 +12,8 @@ import {
   Key,
   Clock,
   CheckCircle,
-  XCircle
+  XCircle,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -41,19 +42,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/Select';
-
-interface Member {
-  id: string;
-  name: string;
-  email: string;
-  role: 'owner' | 'admin' | 'member' | 'viewer';
-  department: string;
-  joinedAt: Date;
-  lastActive: Date;
-  status: 'active' | 'invited' | 'inactive';
-  avatar?: string;
-  twoFactorEnabled: boolean;
-}
+import { useMembers, Member } from '@/lib/hooks/useMembers';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function MembersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,75 +51,36 @@ export default function MembersPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<Member['role']>('member');
 
-  // Mock data
-  const members: Member[] = [
-    {
-      id: '1',
-      name: 'John Doe',
-      email: 'john@company.com',
-      role: 'owner',
-      department: 'Executive',
-      joinedAt: new Date('2023-01-15'),
-      lastActive: new Date('2024-01-20T10:30:00'),
-      status: 'active',
-      twoFactorEnabled: true,
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      email: 'jane@company.com',
-      role: 'admin',
-      department: 'Legal',
-      joinedAt: new Date('2023-03-20'),
-      lastActive: new Date('2024-01-19T15:45:00'),
-      status: 'active',
-      twoFactorEnabled: true,
-    },
-    {
-      id: '3',
-      name: 'Mike Johnson',
-      email: 'mike@company.com',
-      role: 'member',
-      department: 'Finance',
-      joinedAt: new Date('2023-06-10'),
-      lastActive: new Date('2024-01-18T09:00:00'),
-      status: 'active',
-      twoFactorEnabled: false,
-    },
-    {
-      id: '4',
-      name: 'Sarah Wilson',
-      email: 'sarah@company.com',
-      role: 'viewer',
-      department: 'Compliance',
-      joinedAt: new Date('2024-01-10'),
-      lastActive: new Date('2024-01-10'),
-      status: 'invited',
-      twoFactorEnabled: false,
-    },
-  ];
+  const { 
+    members, 
+    isLoading, 
+    inviteMember, 
+    isInviting, 
+    updateMemberRole, 
+    removeMember 
+  } = useMembers();
 
-  const getRoleBadgeColor = (role: Member['role']) => {
+  const getRoleBadgeVariant = (role: Member['role']) => {
     switch (role) {
       case 'owner':
-        return 'bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400';
+        return 'destructive';
       case 'admin':
-        return 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400';
+        return 'default';
       case 'member':
-        return 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400';
+        return 'secondary';
       case 'viewer':
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-400';
+        return 'outline';
     }
   };
 
   const getStatusIcon = (status: Member['status']) => {
     switch (status) {
       case 'active':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
+        return <CheckCircle className="w-4 h-4 text-success" />;
       case 'invited':
-        return <Clock className="w-4 h-4 text-yellow-500" />;
+        return <Clock className="w-4 h-4 text-warning" />;
       case 'inactive':
-        return <XCircle className="w-4 h-4 text-gray-500" />;
+        return <XCircle className="w-4 h-4 text-muted-foreground" />;
     }
   };
 
@@ -139,13 +90,34 @@ export default function MembersPage() {
     member.department.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleInvite = () => {
-    // Handle invite logic
-    console.log('Inviting:', inviteEmail, 'as', inviteRole);
-    setInviteDialogOpen(false);
-    setInviteEmail('');
-    setInviteRole('member');
+  const handleInvite = async () => {
+    try {
+      await inviteMember({ email: inviteEmail, role: inviteRole });
+      setInviteDialogOpen(false);
+      setInviteEmail('');
+      setInviteRole('member');
+    } catch (error) {
+      console.error('Failed to invite member:', error);
+    }
   };
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (confirm('Are you sure you want to remove this member?')) {
+      try {
+        await removeMember(memberId);
+      } catch (error) {
+        console.error('Failed to remove member:', error);
+      }
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -165,19 +137,19 @@ export default function MembersPage() {
         </Card>
         <Card className="p-4">
           <p className="text-sm text-muted-foreground">Active</p>
-          <p className="text-2xl font-bold text-green-600">
+          <p className="text-2xl font-bold text-success">
             {members.filter(m => m.status === 'active').length}
           </p>
         </Card>
         <Card className="p-4">
           <p className="text-sm text-muted-foreground">Pending Invites</p>
-          <p className="text-2xl font-bold text-yellow-600">
+          <p className="text-2xl font-bold text-warning">
             {members.filter(m => m.status === 'invited').length}
           </p>
         </Card>
         <Card className="p-4">
           <p className="text-sm text-muted-foreground">2FA Enabled</p>
-          <p className="text-2xl font-bold text-blue-600">
+          <p className="text-2xl font-bold text-primary">
             {members.filter(m => m.twoFactorEnabled).length}
           </p>
         </Card>
@@ -230,11 +202,11 @@ export default function MembersPage() {
                       {member.department}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      Joined {member.joinedAt.toLocaleDateString()}
+                      Joined {formatDistanceToNow(new Date(member.joinedAt), { addSuffix: true })}
                     </span>
                     {member.status === 'active' && (
                       <span className="text-xs text-muted-foreground">
-                        Last active {member.lastActive.toLocaleDateString()}
+                        Last active {formatDistanceToNow(new Date(member.lastActive), { addSuffix: true })}
                       </span>
                     )}
                   </div>
@@ -243,8 +215,7 @@ export default function MembersPage() {
               
               <div className="flex items-center gap-3">
                 <Badge 
-                  variant="secondary"
-                  className={getRoleBadgeColor(member.role)}
+                  variant={getRoleBadgeVariant(member.role)}
                 >
                   {member.role}
                 </Badge>
@@ -269,7 +240,10 @@ export default function MembersPage() {
                       Resend Invite
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-destructive">
+                    <DropdownMenuItem 
+                      className="text-destructive"
+                      onClick={() => handleRemoveMember(member.id)}
+                    >
                       <UserX className="w-4 h-4 mr-2" />
                       Remove Member
                     </DropdownMenuItem>
@@ -325,8 +299,15 @@ export default function MembersPage() {
             <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleInvite} disabled={!inviteEmail}>
-              Send Invitation
+            <Button onClick={handleInvite} disabled={!inviteEmail || isInviting}>
+              {isInviting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                'Send Invitation'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

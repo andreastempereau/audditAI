@@ -48,47 +48,55 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     
+    /* Success, Warning, Error */
+    --success: 142 76% 36%;
+    --success-foreground: 355 100% 97%;
+    --warning: 45 93% 47%;
+    --warning-foreground: 26 83% 14%;
+    --error: 0 72% 51%;
+    --error-foreground: 0 0% 100%;
+    
     /* Radius */
     --radius: 0.5rem;
   }
 
   .dark {
-    /* Background and foreground */
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Background and foreground - Better contrast */
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
     
-    /* Card */
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    /* Card - Slightly lighter than background */
+    --card: 224 71% 6%;
+    --card-foreground: 213 31% 91%;
     
     /* Popover */
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 224 71% 6%;
+    --popover-foreground: 213 31% 91%;
     
     /* Primary */
     --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary-foreground: 224 71% 4%;
     
-    /* Secondary */
-    --secondary: 217.2 32.6% 17.5%;
+    /* Secondary - More visible */
+    --secondary: 215 27.9% 16.9%;
     --secondary-foreground: 210 40% 98%;
     
-    /* Muted */
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    /* Muted - Better visibility */
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
     
     /* Accent */
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 215 27.9% 16.9%;
     --accent-foreground: 210 40% 98%;
     
     /* Destructive */
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
     
-    /* Border, input, ring */
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    /* Border, input, ring - More visible borders */
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 217.2 91.2% 59.8%;
     
     /* Chart colors */
     --chart-1: 220 70% 50%;
@@ -96,6 +104,14 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+    
+    /* Success, Warning, Error for dark mode */
+    --success: 142 76% 36%;
+    --success-foreground: 355 100% 97%;
+    --warning: 45 93% 47%;
+    --warning-foreground: 26 83% 14%;
+    --error: 0 72% 51%;
+    --error-foreground: 0 0% 100%;
   }
   
   * {

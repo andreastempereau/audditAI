@@ -44,18 +44,26 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Keep legacy colors for compatibility
         success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+          // Keep legacy colors for compatibility
           50: '#F0FDF4',
           500: '#22C55E',
           600: '#16A34A',
         },
         warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+          // Keep legacy colors for compatibility
           50: '#FFFBEB',
           500: '#F59E0B',
           600: '#D97706',
         },
         error: {
+          DEFAULT: "hsl(var(--error))",
+          foreground: "hsl(var(--error-foreground))",
+          // Keep legacy colors for compatibility
           50: '#FEF2F2',
           500: '#EF4444',
           600: '#DC2626',

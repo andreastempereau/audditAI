@@ -7,6 +7,7 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import { Button } from '@/components/ui/Button';
 import { useTheme } from '@/lib/theme';
 import { useAuth } from '@/lib/auth-supabase';
+import { useOrganization } from '@/lib/hooks/useOrganization';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
@@ -26,6 +27,7 @@ const Header = ({ onMenuClick, sidebarCollapsed }: HeaderProps) => {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user, signOut } = useAuth();
+  const { organization } = useOrganization();
 
   const handleSignOut = async () => {
     try {
@@ -72,7 +74,7 @@ const Header = ({ onMenuClick, sidebarCollapsed }: HeaderProps) => {
             <div className="flex items-center gap-2">
               <Shield className="h-6 w-6 text-primary" />
               <span className="hidden font-bold text-foreground sm:block">
-                Ausk
+                {organization?.name || 'Ausk'}
               </span>
             </div>
             

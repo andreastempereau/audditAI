@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { Button } from '@/components/ui/Button';
+import { useOrganization } from '@/lib/hooks/useOrganization';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
@@ -32,6 +33,7 @@ const navigation = [
 
 const Sidebar = ({ collapsed, onToggleCollapse, className }: SidebarProps) => {
   const pathname = usePathname();
+  const { organization } = useOrganization();
 
   const sidebarVariants = {
     expanded: { width: 240 },
@@ -113,7 +115,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, className }: SidebarProps) => {
               className="flex items-center gap-2"
             >
               <Shield className="h-6 w-6 text-primary" />
-              <span className="font-bold text-foreground">Ausk</span>
+              <span className="font-bold text-foreground">{organization?.name || 'Ausk'}</span>
             </motion.div>
           )}
           
@@ -153,8 +155,8 @@ const Sidebar = ({ collapsed, onToggleCollapse, className }: SidebarProps) => {
               transition={{ duration: 0.2 }}
               className="text-xs text-muted-foreground"
             >
-              <div className="mb-1 font-medium">Ausk v1.0</div>
-              <div>Enterprise Edition</div>
+              <div className="mb-1 font-medium">{organization?.name || 'Ausk'} v1.0</div>
+              <div>{organization?.tier === 'enterprise' ? 'Enterprise' : organization?.tier === 'pro' ? 'Professional' : 'Free'} Edition</div>
             </motion.div>
           )}
         </div>

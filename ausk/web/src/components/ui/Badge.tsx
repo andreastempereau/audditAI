@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 
 interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'secondary' | 'success' | 'warning' | 'error' | 'destructive' | 'confidential' | 'restricted' | 'public';
+  variant?: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'error';
   size?: 'sm' | 'md';
 }
 
@@ -18,15 +18,13 @@ const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
             'px-3 py-1 text-sm': size === 'md',
           },
           {
-            'border-muted-200 bg-muted-50 text-muted-700': variant === 'default',
-            'border-secondary bg-secondary text-secondary-foreground': variant === 'secondary',
-            'border-success-200 bg-success-50 text-success-700': variant === 'success',
-            'border-warning-200 bg-warning-50 text-warning-700': variant === 'warning',
-            'border-error-200 bg-error-50 text-error-700': variant === 'error',
-            'border-red-200 bg-red-50 text-red-700': variant === 'destructive',
-            'border-error-500 bg-error-50 text-error-700': variant === 'confidential',
-            'border-warning-500 bg-warning-50 text-warning-700': variant === 'restricted',
-            'border-success-500 bg-success-50 text-success-700': variant === 'public',
+            'bg-primary text-primary-foreground border-transparent': variant === 'default',
+            'bg-secondary text-secondary-foreground border-transparent': variant === 'secondary',
+            'bg-destructive text-destructive-foreground border-transparent': variant === 'destructive',
+            'border-border bg-background text-foreground': variant === 'outline',
+            'bg-success text-success-foreground border-transparent': variant === 'success',
+            'bg-warning text-warning-foreground border-transparent': variant === 'warning',
+            'bg-error text-error-foreground border-transparent': variant === 'error',
           },
           className
         )}
