@@ -28,6 +28,7 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
+  loadingStage: 'idle' | 'initializing' | 'fetching-session' | 'fetching-profile' | 'ready';
 }
 
 interface AuthContextValue extends AuthState {
@@ -48,6 +49,9 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
+// Profile fetch cache to prevent duplicate requests
+const profileFetchCache = new Map<string, Promise<User | null>>();
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -55,9 +59,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading: true,
     isAuthenticated: false,
     error: null,
+    loadingStage: 'initializing',
   });
 
   const supabase = createClientComponentClient();
+  const abortControllerRef = React.useRef<AbortController | null>(null);
 
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));
@@ -67,19 +73,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setState(prev => ({ ...prev, error, isLoading: false }));
   }, []);
 
-  const setLoading = useCallback((isLoading: boolean) => {
-    setState(prev => ({ ...prev, isLoading }));
+  const setLoading = useCallback((isLoading: boolean, stage?: AuthState['loadingStage']) => {
+    setState(prev => ({ 
+      ...prev, 
+      isLoading, 
+      loadingStage: stage || (isLoading ? prev.loadingStage : 'idle')
+    }));
   }, []);
 
-  // Fetch user profile with improved OAuth handling
-  const fetchUserProfile = useCallback(async (supabaseUser: SupabaseUser, retryCount = 0, isOAuthCallback = false): Promise<User | null> => {
-    console.log('fetchUserProfile called for user:', supabaseUser.id, 'retry:', retryCount, 'isOAuth:', isOAuthCallback);
+  // Internal fetch user profile function
+  const fetchUserProfileInternal = useCallback(async (supabaseUser: SupabaseUser, retryCount = 0, isOAuthCallback = false, signal?: AbortSignal): Promise<User | null> => {
+    console.log('fetchUserProfileInternal called for user:', supabaseUser.id, 'retry:', retryCount, 'isOAuth:', isOAuthCallback);
     
     try {
-      // For OAuth users, wait a bit longer on first try to allow server-side profile creation
-      if (isOAuthCallback && retryCount === 0) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      // Check if request was aborted
+      if (signal?.aborted) {
+        console.log('Profile fetch aborted');
+        return null;
       }
+      // No artificial delays - rely on proper server-side handling
 
       // Get user profile
       const { data: profile, error: profileError } = await supabase
@@ -101,8 +113,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
             Math.min(baseDelay * Math.pow(2, retryCount), 8000) : // OAuth: exponential backoff up to 8s
             baseDelay; // Email/password: quick 500ms retry only
           console.log(`Profile not found, retrying in ${delay}ms... (attempt ${retryCount + 1}/${maxRetries}, isOAuth: ${isOAuthCallback})`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          return fetchUserProfile(supabaseUser, retryCount + 1, isOAuthCallback);
+          
+          // Check if aborted before delay
+          if (signal?.aborted) return null;
+          
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(resolve, delay);
+            signal?.addEventListener('abort', () => {
+              clearTimeout(timeout);
+              reject(new Error('Aborted'));
+            });
+          }).catch(() => null);
+          
+          if (signal?.aborted) return null;
+          
+          return fetchUserProfileInternal(supabaseUser, retryCount + 1, isOAuthCallback, signal);
         }
         
         console.error('Error fetching profile or profile not found after retries:', profileError);
@@ -193,11 +218,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [supabase]);
 
+  // Deduplicated fetch user profile function
+  const fetchUserProfile = useCallback(async (supabaseUser: SupabaseUser, retryCount = 0, isOAuthCallback = false): Promise<User | null> => {
+    const cacheKey = supabaseUser.id;
+    
+    // Return existing promise if one is in flight
+    if (profileFetchCache.has(cacheKey)) {
+      console.log('Returning cached profile fetch promise for user:', cacheKey);
+      return profileFetchCache.get(cacheKey)!;
+    }
+    
+    // Create new promise with abort controller
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    
+    const promise = fetchUserProfileInternal(supabaseUser, retryCount, isOAuthCallback, controller.signal);
+    profileFetchCache.set(cacheKey, promise);
+    
+    try {
+      const result = await promise;
+      return result;
+    } finally {
+      // Clean up cache after a short delay to handle rapid successive calls
+      setTimeout(() => profileFetchCache.delete(cacheKey), 100);
+    }
+  }, [fetchUserProfileInternal]);
+
   // Set user and session
   const setUserAndSession = useCallback(async (session: Session | null, isOAuthCallback = false) => {
     try {
       if (session?.user) {
         console.log('Setting user and session for:', session.user.id, 'isOAuth:', isOAuthCallback);
+        setLoading(true, 'fetching-profile');
         
         // Fetch user profile with OAuth context
         const userProfile = await fetchUserProfile(session.user, 0, isOAuthCallback);
@@ -210,6 +262,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             session,
             isAuthenticated: true,
             isLoading: false,
+            loadingStage: 'ready',
             error: null,
           }));
           console.log('Auth state updated - authenticated with profile');
@@ -222,6 +275,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             session,
             isAuthenticated: true, // They have a valid session
             isLoading: false,
+            loadingStage: 'ready',
             error: 'Profile not found - please complete setup',
           }));
         }
@@ -233,6 +287,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           session: null,
           isAuthenticated: false,
           isLoading: false,
+          loadingStage: 'ready',
           error: null,
         }));
       }
@@ -241,6 +296,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setState(prev => ({
         ...prev,
         isLoading: false,
+        loadingStage: 'ready',
         error: 'Failed to initialize authentication',
       }));
     }
@@ -248,31 +304,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Initialize auth state
   useEffect(() => {
-    let mounted = true;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     // Get initial session
     const getInitialSession = async () => {
       try {
+        setLoading(true, 'fetching-session');
         const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (controller.signal.aborted) return;
         
         if (error) {
           console.error('Error getting session:', error);
-          if (mounted) {
-            setState(prev => ({ ...prev, isLoading: false, error: error.message }));
-          }
+          setState(prev => ({ 
+            ...prev, 
+            isLoading: false, 
+            loadingStage: 'ready',
+            error: error.message 
+          }));
           return;
         }
 
-        if (mounted) {
-          // Check if this is an OAuth callback by looking at URL only
-          const isOAuthCallback = typeof window !== 'undefined' && 
-            window.location.search.includes('code=');
-          await setUserAndSession(session, isOAuthCallback);
-        }
+        // Check if this is an OAuth callback by looking at URL only
+        const isOAuthCallback = typeof window !== 'undefined' && 
+          window.location.search.includes('code=');
+        await setUserAndSession(session, isOAuthCallback);
       } catch (error) {
         console.error('Error in getInitialSession:', error);
-        if (mounted) {
-          setState(prev => ({ ...prev, isLoading: false, error: 'Failed to initialize auth' }));
+        if (!controller.signal.aborted) {
+          setState(prev => ({ 
+            ...prev, 
+            isLoading: false, 
+            loadingStage: 'ready',
+            error: 'Failed to initialize auth' 
+          }));
         }
       }
     };
@@ -282,7 +348,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!mounted) return;
+        if (controller.signal.aborted) return;
 
         console.log('Auth state changed:', event, session?.user?.id);
 
@@ -298,6 +364,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             session: null,
             isAuthenticated: false,
             isLoading: false,
+            loadingStage: 'ready',
             error: null,
           }));
         }
@@ -305,8 +372,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     );
 
     return () => {
-      mounted = false;
+      controller.abort();
       subscription.unsubscribe();
+      // Clear any pending profile fetches
+      profileFetchCache.clear();
     };
   }, [supabase.auth, setUserAndSession]);
 
@@ -349,11 +418,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signIn = useCallback(async (email: string, password: string, rememberMe = false) => {
     console.log('=== AUTH CONTEXT signIn START ===');
     console.log('signIn called with:', { email, rememberMe });
-    console.log('Current auth state before signIn:', { isLoading: state.isLoading, isAuthenticated: state.isAuthenticated });
-    setLoading(true);
     clearError();
 
     try {
+      // Don't set loading here - let the form handle its own loading state
       console.log('About to call supabase.auth.signInWithPassword...');
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -373,22 +441,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       console.log('Sign in successful, user:', data.user?.id);
-      console.log('About to set auth context loading to false...');
-
-      // Set loading false immediately, onAuthStateChange will also set it
-      setState(prev => ({ ...prev, isLoading: false }));
-      console.log('Auth context loading set to false');
+      // Don't set loading false here - onAuthStateChange will handle state updates
       console.log('=== AUTH CONTEXT signIn SUCCESS END ===');
       
     } catch (error) {
       console.error('signIn error caught in catch block:', error);
       const message = error instanceof AuthError ? error.message : 'Sign in failed';
       setError(message);
-      setState(prev => ({ ...prev, isLoading: false }));
       console.log('=== AUTH CONTEXT signIn ERROR END ===');
       throw error;
     }
-  }, [supabase.auth, setLoading, clearError, setError, setState, state.isLoading, state.isAuthenticated]);
+  }, [supabase.auth, clearError, setError]);
 
   // Sign in with OAuth
   const signInWithOAuth = useCallback(async (provider: 'google' | 'github' | 'azure') => {

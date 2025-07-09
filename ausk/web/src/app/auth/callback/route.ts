@@ -280,9 +280,6 @@ export async function GET(request: NextRequest) {
         
         console.log('OAuth callback complete - redirecting to:', finalRedirect);
         
-        // Add a small delay to ensure all async operations complete
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
         // Create redirect response with all the cookies from the previous response
         const redirectResponse = NextResponse.redirect(new URL(finalRedirect, requestUrl.origin))
         

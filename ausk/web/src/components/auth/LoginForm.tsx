@@ -26,12 +26,15 @@ interface LoginFormProps {
 
 export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [formSubmitting, setFormSubmitting] = useState(false);
   const router = useRouter();
-  const { signIn, signInWithOAuth, isAuthenticated, error, clearError } = useAuth();
+  const { signIn, signInWithOAuth, isAuthenticated, isLoading: authLoading, loadingStage, error, clearError } = useAuth();
+  
+  // Use auth context loading for OAuth, form state for regular sign in
+  const isLoading = formSubmitting || (authLoading && loadingStage !== 'initializing');
 
   // Debug: log the loading state
-  console.log('LoginForm isLoading:', isLoading);
+  console.log('LoginForm loading states:', { formSubmitting, authLoading, loadingStage, isLoading });
 
   const {
     register,
@@ -60,9 +63,7 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
 
   const onSubmit = async (data: LoginFormData) => {
     console.log('=== LOGIN FORM onSubmit START ===');
-    console.log('onSubmit: Current isLoading state:', isLoading);
-    console.log('onSubmit: Setting isLoading to true');
-    setIsLoading(true);
+    setFormSubmitting(true);
     clearError();
 
     try {
@@ -72,6 +73,8 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
       // Redirect will happen automatically via useEffect
     } catch (error) {
       console.log('onSubmit: signIn failed with error:', error);
+      setFormSubmitting(false); // Only set false on error, success will redirect
+      
       if (error instanceof Error) {
         if (error.message.includes('Invalid login credentials')) {
           setError('email', { message: 'Invalid email or password' });
@@ -82,11 +85,8 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
           setError('email', { message: error.message });
         }
       }
-    } finally {
-      console.log('onSubmit: FINALLY BLOCK REACHED - Setting isLoading to false');
-      setIsLoading(false);
-      console.log('=== LOGIN FORM onSubmit END ===');
     }
+    console.log('=== LOGIN FORM onSubmit END ===');
   };
 
   const handleSocialAuth = async (provider: 'google' | 'microsoft' | 'github') => {
