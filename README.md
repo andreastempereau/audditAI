@@ -1,8 +1,8 @@
-# Auddit AI (CrossAudit AI)
+# Ausk
 
 > **Real‑time, multi‑model AI‑response governance with auditable data provenance.**
 
-CrossAudit AI is a drop‑in gateway that intercepts every LLM interaction, tests it against customer policies across multiple evaluator models, rewrites or blocks unsafe content in ≤ 2 s, and logs a forensically complete chain of evidence.
+Ausk AI is a drop‑in gateway that intercepts every LLM interaction, tests it against customer policies across multiple evaluator models, rewrites or blocks unsafe content in ≤ 2 s, and logs a forensically complete chain of evidence.
 A built‑in **Data Room** stores your approved documents, a full **RBAC** layer isolates tenants, and Timescale‑powered metrics keep you ahead of SLO drift.
 
 ---
@@ -26,7 +26,7 @@ A built‑in **Data Room** stores your approved documents, a full **RBAC** lay
 ## 🏗 Project Structure
 
 ```
-crossaudit/
+Ausk/
 ├── app/                    # FastAPI application  
 │   ├── auth/               # OAuth, MFA, password flows  
 │   ├── routes/             # Versioned API routers  
@@ -51,7 +51,7 @@ Prerequisites: Docker 20+, Docker Compose, Python 3.12, Node 20 (for fronte
 
 ```bash
 # 1. Clone
-git clone https://github.com/crossaudit/crossaudit.git && cd crossaudit
+git clone https://github.com/Ausk/Ausk.git && cd Ausk
 
 # 2. Environment
 cp .env.example .env          # fill in dummy secrets
@@ -145,7 +145,7 @@ Coverage must stay ≥ 85 %; CI enforces this gate.
 ## 🛡️ Security & Responsible Disclosure
 
 We follow **Coordinated Vulnerability Disclosure**.
-Please email **[security@crossaudit.ai](mailto:security@crossaudit.ai)** with the details; you will receive a PGP key for encrypted communication. Critical issues are fixed within 72 h of triage.
+Please email **[security@Ausk.ai](mailto:security@Ausk.ai)** with the details; you will receive a PGP key for encrypted communication. Critical issues are fixed within 72 h of triage.
 
 ---
 
@@ -164,10 +164,10 @@ All code must be typed (`mypy --strict`) and formatted with **ruff** (`make fmt`
 
 ```
 Apache License 2.0
-Copyright 2025 CrossAudit
+Copyright 2025 Ausk
 ```
 
-Commercial OEM licensing available for on‑prem banks; contact **[sales@crossaudit.ai](mailto:sales@crossaudit.ai)**.
+Commercial OEM licensing available for on‑prem banks; contact **[sales@Ausk.ai](mailto:sales@Ausk.ai)**.
 
 ---
 
