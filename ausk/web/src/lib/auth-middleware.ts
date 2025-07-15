@@ -39,8 +39,11 @@ export async function validateAuth(request: NextRequest): Promise<{
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value;
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll() {
+            // Read-only in middleware
           },
         },
       }

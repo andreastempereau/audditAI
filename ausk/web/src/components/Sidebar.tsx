@@ -10,7 +10,10 @@ import {
   Users, 
   Settings,
   ChevronLeft,
-  Shield
+  Shield,
+  Share2,
+  Brain,
+  Sparkles
 } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { Button } from '@/components/ui/Button';
@@ -26,6 +29,9 @@ interface SidebarProps {
 const navigation = [
   { name: 'Chat', href: '/app', icon: MessageSquare },
   { name: 'Data Room', href: '/app/data-room', icon: FolderOpen },
+  { name: 'Trust Bubbles', href: '/app/trust-bubbles', icon: Share2 },
+  { name: 'Expertise', href: '/app/expertise', icon: Brain },
+  { name: 'Prompt Vault', href: '/app/prompts', icon: Sparkles },
   { name: 'Audit Logs', href: '/app/logs', icon: FileText },
   { name: 'Members', href: '/app/admin/members', icon: Users },
   { name: 'Settings', href: '/app/admin/settings', icon: Settings },

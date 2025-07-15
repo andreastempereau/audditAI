@@ -103,16 +103,13 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value
+          getAll() {
+            return request.cookies.getAll()
           },
-          set(name: string, value: string, options: any) {
-            // Set cookie on the response
-            response.cookies.set({ name, value, ...options })
-          },
-          remove(name: string, options: any) {
-            // Remove cookie from the response
-            response.cookies.set({ name, value: '', ...options })
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set({ name, value, ...options })
+            })
           },
         },
       }

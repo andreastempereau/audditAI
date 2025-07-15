@@ -7,7 +7,6 @@ import { z } from 'zod';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { SocialAuthButton } from '@/components/auth/SocialAuthButton';
 import { useAuth } from '@/lib/auth-supabase';
 import { cn } from '@/lib/utils';
 
@@ -28,7 +27,7 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const router = useRouter();
-  const { signIn, signInWithOAuth, isAuthenticated, isLoading: authLoading, loadingStage, error, clearError } = useAuth();
+  const { signIn, isAuthenticated, isLoading: authLoading, loadingStage, error, clearError } = useAuth();
   
   // Use auth context loading for OAuth, form state for regular sign in
   const isLoading = formSubmitting || (authLoading && loadingStage !== 'initializing');
@@ -89,15 +88,6 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
     console.log('=== LOGIN FORM onSubmit END ===');
   };
 
-  const handleSocialAuth = async (provider: 'google' | 'microsoft' | 'github') => {
-    try {
-      // Map microsoft to azure for Supabase
-      const supabaseProvider = provider === 'microsoft' ? 'azure' : provider;
-      await signInWithOAuth(supabaseProvider as 'google' | 'github' | 'azure');
-    } catch (error) {
-      console.error('OAuth error:', error);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -113,31 +103,6 @@ export function LoginForm({ redirectMessage, redirectPath }: LoginFormProps) {
         </div>
       )}
 
-      {/* Social Auth */}
-      <div className="space-y-3">
-        <SocialAuthButton
-          provider="google"
-          onClick={() => handleSocialAuth('google')}
-          disabled={isLoading}
-        />
-        <SocialAuthButton
-          provider="microsoft"
-          onClick={() => handleSocialAuth('microsoft')}
-          disabled={isLoading}
-        />
-      </div>
-
-      {/* Divider */}
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-card text-muted-foreground">
-            Or continue with email
-          </span>
-        </div>
-      </div>
 
       {/* Login Form */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">

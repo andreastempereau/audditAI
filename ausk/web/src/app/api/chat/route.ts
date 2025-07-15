@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
 import { z } from 'zod';
 
 // Request validation schemas
@@ -11,7 +10,20 @@ const sendMessageSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll() {
+            // Read-only in GET requests
+          },
+        },
+      }
+    );
     
     // Check authentication
     const { data: { session } } = await supabase.auth.getSession();
@@ -28,7 +40,7 @@ export async function GET(request: NextRequest) {
         user_id,
         thread_id,
         created_at,
-        profiles:user_id (name, email)
+        profiles!user_id (name, email)
       `)
       .order('created_at', { ascending: true })
       .limit(100);
@@ -57,7 +69,23 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const response = NextResponse.next();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set({ name, value, ...options });
+            });
+          },
+        },
+      }
+    );
     
     // Check authentication
     const { data: { session } } = await supabase.auth.getSession();
@@ -67,29 +95,9 @@ export async function POST(request: NextRequest) {
 
     // Validate request body
     const body = await request.json();
-    const validationResult = sendMessageSchema.safeParse(body);
-    
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: 'Invalid request', details: validationResult.error.errors },
-        { status: 400 }
-      );
-    }
-
-    const { content, threadId } = validationResult.data;
+    const validatedData = sendMessageSchema.parse(body);
 
     // Get user's organization
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', session.user.id)
-      .single();
-
-    if (!profile) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
-
-    // Get user's organization (assume first organization for now)
     const { data: userOrg } = await supabase
       .from('user_organizations')
       .select('organization_id')
@@ -101,25 +109,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No organization found' }, { status: 403 });
     }
 
-    // Get or create default thread if none specified
-    let finalThreadId = threadId;
+    let threadId = validatedData.threadId;
+
+    // If no thread specified, create a default thread
     if (!threadId) {
-      // Create a default thread for the organization if it doesn't exist
       const { data: existingThread } = await supabase
         .from('chat_threads')
         .select('id')
         .eq('organization_id', userOrg.organization_id)
         .eq('name', 'General')
+        .limit(1)
         .single();
 
       if (existingThread) {
-        finalThreadId = existingThread.id;
+        threadId = existingThread.id;
       } else {
+        // Create a default thread
         const { data: newThread, error: threadError } = await supabase
           .from('chat_threads')
           .insert({
-            organization_id: userOrg.organization_id,
             name: 'General',
+            organization_id: userOrg.organization_id,
             created_by: session.user.id,
             participants: [session.user.id],
           })
@@ -127,20 +137,45 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (threadError) {
-          console.error('Error creating thread:', threadError);
+          console.error('Error creating default thread:', threadError);
           return NextResponse.json({ error: 'Failed to create thread' }, { status: 500 });
         }
-        finalThreadId = newThread.id;
+
+        threadId = newThread.id;
       }
+    }
+
+    // Verify user has access to the thread
+    const { data: thread } = await supabase
+      .from('chat_threads')
+      .select('participants')
+      .eq('id', threadId)
+      .eq('organization_id', userOrg.organization_id)
+      .single();
+
+    if (!thread) {
+      return NextResponse.json({ error: 'Thread not found' }, { status: 404 });
+    }
+
+    // Add user to participants if not already there
+    if (!thread.participants.includes(session.user.id)) {
+      await supabase
+        .from('chat_threads')
+        .update({ 
+          participants: [...thread.participants, session.user.id],
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', threadId);
     }
 
     // Insert the message
     const { data: message, error } = await supabase
       .from('chat_messages')
       .insert({
-        content,
+        content: validatedData.content,
         user_id: session.user.id,
-        thread_id: finalThreadId,
+        thread_id: threadId,
+        organization_id: userOrg.organization_id,
       })
       .select(`
         id,
@@ -148,16 +183,22 @@ export async function POST(request: NextRequest) {
         user_id,
         thread_id,
         created_at,
-        profiles:user_id (name, email)
+        profiles!user_id (name, email)
       `)
       .single();
 
     if (error) {
-      console.error('Error inserting message:', error);
+      console.error('Error creating message:', error);
       return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
     }
 
-    // Transform response to match frontend interface
+    // Update thread's updated_at
+    await supabase
+      .from('chat_threads')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', threadId);
+
+    // Transform to match frontend interface
     const transformedMessage = {
       id: message.id,
       content: message.content,
@@ -167,11 +208,11 @@ export async function POST(request: NextRequest) {
       threadId: message.thread_id,
     };
 
-    // TODO: Implement WebSocket broadcast for real-time updates
-    // broadcastToThread(finalThreadId, 'chat:message', transformedMessage);
-
     return NextResponse.json(transformedMessage);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid request data', details: error.errors }, { status: 400 });
+    }
     console.error('Chat POST error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

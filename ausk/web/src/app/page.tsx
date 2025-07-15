@@ -5,6 +5,8 @@ import { Shield, Menu, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth-supabase';
 import MultiModelDemo from '@/components/landing/MultiModelDemo';
 import Features from '@/components/landing/Features';
+import FeatureCards from '@/components/landing/FeatureCards';
+import AgentOrchestrator from '@/components/landing/AgentOrchestrator';
 import DataRoomDemo from '@/components/landing/DataRoomDemo';
 import InteractiveTutorial from '@/components/landing/InteractiveTutorial';
 import Hero from '@/components/landing/Hero';
@@ -42,6 +44,18 @@ const Header = () => {
               className="text-gray-600 hover:text-gray-900 transition-colors"
             >
               Intro
+            </button>
+            <button 
+              onClick={() => scrollToSection('feature-cards')}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Capabilities
+            </button>
+            <button 
+              onClick={() => scrollToSection('agent-orchestrator')}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Agent Orchestrator
             </button>
             <button 
               onClick={() => scrollToSection('multi-model')}
@@ -97,6 +111,18 @@ const Header = () => {
                 className="text-gray-600 hover:text-gray-900 transition-colors text-left"
               >
                 Intro
+              </button>
+              <button 
+                onClick={() => scrollToSection('feature-cards')}
+                className="text-gray-600 hover:text-gray-900 transition-colors text-left"
+              >
+                Capabilities
+              </button>
+              <button 
+                onClick={() => scrollToSection('agent-orchestrator')}
+                className="text-gray-600 hover:text-gray-900 transition-colors text-left"
+              >
+                Agent Orchestrator
               </button>
               <button 
                 onClick={() => scrollToSection('multi-model')}
@@ -162,6 +188,16 @@ export default function Page() {
       </div>
       <div id="hero" className="hero-section">
         <Hero />
+      </div>
+
+      {/* Feature Cards Section */}
+      <div id="feature-cards">
+        <FeatureCards />
+      </div>
+
+      {/* Agent Orchestrator Section */}
+      <div id="agent-orchestrator">
+        <AgentOrchestrator />
       </div>
       
       {/* Actual demo components */}

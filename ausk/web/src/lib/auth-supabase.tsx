@@ -441,7 +441,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       console.log('Sign in successful, user:', data.user?.id);
-      // Don't set loading false here - onAuthStateChange will handle state updates
+      
+      // Immediately update state with the session data to prevent redirect issues
+      if (data.session && data.user) {
+        console.log('Immediately setting user and session after sign in');
+        await setUserAndSession(data.session, false);
+      }
+      
       console.log('=== AUTH CONTEXT signIn SUCCESS END ===');
       
     } catch (error) {
